@@ -79,6 +79,7 @@ class Basis1D:
         # Set matrices
         self.set_mass_matrix(), self.set_inv_mass_matrix()
         self.set_internal_flux_matrix()
+        self.set_numerical_flux_matrix()
 
     def set_eigenvalues(self):
         evs = np.array([(2.0 * s + 1) / 2.0 for s in range(self.order - 1)])

@@ -38,16 +38,20 @@ class Distribution:
                                                                 drift_velocity=0.0), axes=0)
 
         # compute perturbation
-        perturbation = (grid.eigenfunction(thermal_velocity=1,
-                                          drift_velocity=0.0,
-                                          eigenvalue=1.68 - 0.4j) +
-                        grid.eigenfunction(thermal_velocity=1,
-                                           drift_velocity=0.0,
-                                           eigenvalue=-1.68 - 0.4j))
-        self.arr_nodal = maxwellian + 1.0e-2 * perturbation
+        # perturbation = (grid.eigenfunction(thermal_velocity=1,
+        #                                   drift_velocity=0.0,
+        #                                   eigenvalue=1.68 - 0.4j) +
+        #                 grid.eigenfunction(thermal_velocity=1,
+        #                                    drift_velocity=0.0,
+        #                                    eigenvalue=-1.68 - 0.4j))
+        perturbation = cp.tensordot(cp.sin(grid.x.fundamental * grid.x.device_arr),
+                                    grid.v.compute_maxwellian(thermal_velocity=1.0,
+                                                              drift_velocity=0.0),
+                                    axes=0)
+        self.arr_nodal = maxwellian + 0.5 * perturbation
 
     def fourier_transform(self):
         self.arr = cp.fft.fftshift(cp.fft.fft(self.arr_nodal, axis=0, norm='forward'), axes=0)
 
     def inverse_fourier_transform(self):
-        self.arr_nodal = cp.real(cp.fft.ifft(cp.fftshift(self.arr), norm='forward', axis=0))
+        self.arr_nodal = cp.real(cp.fft.ifft(cp.fft.fftshift(self.arr, axes=0), norm='forward', axis=0))
