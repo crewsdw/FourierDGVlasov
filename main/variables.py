@@ -45,7 +45,7 @@ class Distribution:
                                                                        drift_velocity=-2.0), axes=0))
 
         # compute perturbation
-        perturbation = np.real(grid.eigenfunction(thermal_velocity=1,
+        perturbation = np.imag(grid.eigenfunction(thermal_velocity=1,
                                                   drift_velocity=[2, -2],
                                                   eigenvalue=1.2j))
         # perturbation = np.real(grid.eigenfunction(thermal_velocity=1,

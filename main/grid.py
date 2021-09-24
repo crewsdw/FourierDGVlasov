@@ -28,10 +28,11 @@ class SpaceGrid:
         self.wavenumbers = self.fundamental * np.arange(-self.modes, self.modes)
         self.device_wavenumbers = np.array(self.wavenumbers)
         self.zero_idx = int(self.modes)
-        self.two_thirds_low = int((1 * self.modes)//3 + 1)
-        self.two_thirds_high = self.wavenumbers.shape[0] - self.two_thirds_low
-        print(self.two_thirds_low)
-        print(self.two_thirds_high)
+        # self.two_thirds_low = int((1 * self.modes)//3 + 1)
+        # self.two_thirds_high = self.wavenumbers.shape[0] - self.two_thirds_low
+        self.pad_width = int((1 * self.modes)//3 + 1)
+        # print(self.two_thirds_low)
+        # print(self.two_thirds_high)
 
     def create_grid(self):
         """ Build evenly spaced grid, assumed periodic """

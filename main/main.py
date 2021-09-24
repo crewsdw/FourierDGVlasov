@@ -11,7 +11,7 @@ import timestep as ts
 from copy import deepcopy
 
 # elements and order
-elements, order = [32, 32], 8
+elements, order = [128, 32], 8
 
 # set up grid
 lows = np.array([-5*np.pi, -6])
@@ -48,8 +48,10 @@ print(np.amax(elliptic.field.arr_nodal))
 # A time-stepper (put in its own class!)
 t0 = timer.time()
 time = 0
-dt = 1.0e-2
+dt = 1.5e-2
 step = 0.1
+dt_max = 1.0 / (np.amax(grid.x.wavenumbers) * np.amax(grid.v.arr)) / (1.0 + 2.0 * order)
+print('Max dt is {:0.3e}'.format(dt_max))
 plotter = my_plt.Plotter(grid=grid)
 plotter.distribution_contourf(distribution=test_distribution, plot_spectrum=True)
 # plotter.spatial_scalar_plot(scalar=elliptic.field, y_axis='Electric Field', spectrum=True)
@@ -102,8 +104,8 @@ plotter.distribution_contourf(distribution=test_distribution)
 plotter.distribution_contourf(distribution=diff_distribution)
 plotter.spatial_scalar_plot(scalar=test_distribution.zero_moment, y_axis='Zero moment')
 plotter.spatial_scalar_plot(scalar=elliptic.field, y_axis='Electric Field')
-
-plotter.time_series_plot(time=stepper.time_array, series=stepper.field_energy)
+plotter.time_series_plot(time=stepper.time_array, series=stepper.field_energy,
+                         y_axis='Electric energy', log=True)
 plotter.show()
 
 # plotter.spatial_scalar_plot(scalar=test_scalar, y_axis='test')

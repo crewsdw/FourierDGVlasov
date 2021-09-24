@@ -32,21 +32,36 @@ class DGFlux:
         """ Computes the semi-discrete equation """
         # Do elliptic problem
         elliptic.poisson_solve(distribution=distribution, grid=grid, invert=False)
+        # elliptic.field.arr_spectral[:grid.x.two_thirds_low] = 0.0 + 0j
+        # elliptic.field.arr_spectral[grid.x.two_thirds_high:] = 0.0 + 0j
         # Compute the flux
-        self.compute_flux(distribution=distribution, elliptic=elliptic)
+        self.compute_flux(distribution=distribution, elliptic=elliptic, grid=grid)
         self.output.arr = (grid.v.J * self.v_flux(grid=grid)
                            + self.source_term(distribution=distribution, grid=grid))
         return self.output.arr
         # self.output.arr = self.source_term(distribution=distribution, grid=grid)
 
-    def compute_flux(self, distribution, elliptic):
+    def compute_flux(self, distribution, elliptic, grid):
         """ Compute the flux convolution(field, distribution) using pseudospectral method """
-        # elliptic.field.inverse_fourier_transform()
         # elliptic.poisson_solve(distr)
-        distribution.inverse_fourier_transform()
-        self.flux.arr_nodal = np.multiply(elliptic.field.arr_nodal[:, None, None],
-                                          distribution.arr_nodal)
-        self.flux.fourier_transform()
+        # elliptic.field.inverse_fourier_transform()
+        # distribution.inverse_fourier_transform()
+        # print(elliptic.field.arr_spectral)
+        padded_field_spectrum = np.pad(elliptic.field.arr_spectral, grid.x.pad_width)
+        padded_dist_spectrum = np.pad(distribution.arr, grid.x.pad_width)[:,
+                               grid.x.pad_width:-grid.x.pad_width,
+                               grid.x.pad_width:-grid.x.pad_width]
+        # print(distribution.arr.shape)
+        # print(padded_dist_spectrum.shape)
+        # quit()
+        # pseudospectral product
+        field_nodal = np.real(np.fft.ifft(np.fft.fftshift(padded_field_spectrum, axes=0), norm='forward', axis=0))
+        distr_nodal = np.real(np.fft.ifft(np.fft.fftshift(padded_dist_spectrum, axes=0), norm='forward', axis=0))
+        nodal_flux = np.multiply(field_nodal[:, None, None], distr_nodal)
+        self.flux.arr = np.fft.fftshift(np.fft.fft(
+            nodal_flux, axis=0, norm='forward'), axes=0
+        )[grid.x.pad_width:-grid.x.pad_width, :, :]
+        # self.flux.fourier_transform()[grid.x.pad_width]
 
     def v_flux(self, grid):
         return -1.0 * (basis_product(flux=self.flux.arr, basis_arr=grid.v.local_basis.internal, axis=2) -

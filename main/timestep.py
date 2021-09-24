@@ -37,7 +37,7 @@ class Stepper:
             print('Took step, time is {:0.3e}'.format(self.time))
 
             if plot:
-                plotter.distribution_contourf(distribution=distribution, plot_spectrum=True)
+                plotter.distribution_contourf(distribution=distribution, plot_spectrum=False)
                 plotter.show()
 
         return distribution
