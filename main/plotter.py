@@ -1,4 +1,4 @@
-import cupy as cp
+# import cupy as np
 import numpy as np
 import matplotlib.pyplot as plt
 # import matplotlib.animation as animation
@@ -23,12 +23,14 @@ class Plotter:
         if distribution.arr is None:
             distribution.fourier_transform()
 
-        spectrum = np.log(1.0 + np.absolute(distribution.spectral_flatten().get()))
-        cb = cp.linspace(cp.amin(distribution.arr_nodal), cp.amax(distribution.arr_nodal), num=100).get()
+        # spectrum = np.log(1.0 + np.absolute(distribution.spectral_flatten().get()))
+        # cb = np.linspace(np.amin(distribution.arr_nodal), np.amax(distribution.arr_nodal), num=100).get()
+        spectrum = np.log(1.0 + np.absolute(distribution.spectral_flatten()))
+        cb = np.linspace(np.amin(distribution.arr_nodal), np.amax(distribution.arr_nodal), num=100)  # 0
         cb_s = np.linspace(np.amin(spectrum), np.amax(spectrum), num=100)
 
         plt.figure()
-        plt.contourf(self.X, self.V, distribution.grid_flatten().get(), cb, cmap=self.colormap)
+        plt.contourf(self.X, self.V, distribution.grid_flatten(), cb, cmap=self.colormap)
         plt.xlabel('x'), plt.ylabel('v'), plt.colorbar(), plt.tight_layout()
 
         if plot_spectrum:
@@ -41,13 +43,13 @@ class Plotter:
             scalar.inverse_fourier_transform()
 
         plt.figure()
-        plt.plot(self.x.flatten(), scalar.arr_nodal.get().flatten(), 'o')
+        plt.plot(self.x.flatten(), scalar.arr_nodal.flatten(), 'o')
         plt.xlabel('x'), plt.ylabel(y_axis)
         plt.grid(True), plt.tight_layout()
 
         if spectrum:
             plt.figure()
-            spectrum = scalar.arr_spectral.get().flatten()
+            spectrum = scalar.arr_spectral.flatten()
             plt.plot(self.k.flatten(), np.real(spectrum), 'ro', label='real')
             plt.plot(self.k.flatten(), np.imag(spectrum), 'go', label='imaginary')
             plt.xlabel('Modes'), plt.ylabel(y_axis + ' spectrum')

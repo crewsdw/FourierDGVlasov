@@ -1,4 +1,5 @@
-import cupy as cp
+# import cupy as np
+import numpy as np
 import variables as var
 
 
@@ -15,8 +16,9 @@ class Elliptic:
         distribution.zero_moment.arr_spectral[grid.x.zero_idx] -= 1.0
 
         # Compute field spectrum
-        self.field.arr_spectral = 1j * cp.nan_to_num(cp.divide(distribution.zero_moment.arr_spectral,
-                                                               grid.x.device_wavenumbers))
+        self.field.arr_spectral = 1j * np.nan_to_num(np.divide(distribution.zero_moment.arr_spectral,
+                                                               grid.x.device_wavenumbers,
+                                                               where=grid.x.device_wavenumbers != 0))
 
         if invert:
             self.field.inverse_fourier_transform()

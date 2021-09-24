@@ -1,5 +1,5 @@
 import numpy as np
-import cupy as cp
+# import cupy as np
 # from scipy.special import legendre
 import scipy.special as sp
 
@@ -65,7 +65,7 @@ class Basis1D:
         self.order = int(order)
         self.nodes, self.weights = (np.array(lgl_nodes.get(self.order, "nothing")),
                                     np.array(lgl_weights.get(self.order, "nothing")))
-        self.device_weights = cp.asarray(self.weights)
+        self.device_weights = np.asarray(self.weights)
 
         # vandermonde matrix and inverse
         self.eigenvalues = self.set_eigenvalues()
@@ -130,7 +130,7 @@ class Basis1D:
         # Clear machine errors
         up[np.abs(up) < 1.0e-10] = 0
 
-        self.internal = cp.asarray(up)
+        self.internal = np.asarray(up)
 
     def set_numerical_flux_matrix(self):
-        self.numerical = cp.asarray(self.inv_mass[:, np.array([0, -1])])
+        self.numerical = np.asarray(self.inv_mass[:, np.array([0, -1])])

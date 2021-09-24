@@ -1,23 +1,26 @@
 import numpy as np
-import cupy as cp
+# import cupy as np
 import grid as g
 import variables as var
 import elliptic as ell
 import plotter as my_plt
 import fluxes as fx
 import time as timer
+import scipy.integrate as spint
+import timestep as ts
+from copy import deepcopy
 
 # elements and order
-elements, order = [16, 32], 8
+elements, order = [64, 64], 5
 
 # set up grid
-lows = np.array([-np.pi, -4.0])
-highs = np.array([np.pi, 4.0])
+lows = np.array([-5 * np.pi, -11])
+highs = np.array([5 * np.pi, 11])
 grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 
 # build distribution
 # test_scalar = var.SpaceScalar(resolution=elements[0])
-# test_scalar.arr_nodal = cp.sin(grid.x.device_arr)
+# test_scalar.arr_nodal = np.sin(grid.x.device_arr)
 # test_scalar.fourier_transform()
 initial_distribution = var.Distribution(resolutions=elements, order=order)
 initial_distribution.initialize(grid=grid)
@@ -38,46 +41,56 @@ elliptic.poisson_solve(distribution=test_distribution, grid=grid)
 print(np.amax(elliptic.field.arr_nodal))
 
 # test spectral flux reconstruction
-flux = fx.DGFlux(resolutions=elements, order=order)
+# flux = fx.DGFlux(resolutions=elements, order=order)
 # flux.compute_flux(distribution=test_distribution, elliptic=elliptic)
-flux.semi_discrete_rhs(distribution=test_distribution, elliptic=elliptic, grid=grid)
+# flux.semi_discrete_rhs(distribution=test_distribution, elliptic=elliptic, grid=grid)
 
 # A time-stepper (put in its own class!)
 t0 = timer.time()
 time = 0
-dt = 1.0e-3
+dt = 5.0e-3
+step = 12.0
 plotter = my_plt.Plotter(grid=grid)
-plotter.distribution_contourf(distribution=test_distribution, plot_spectrum=True)
-plotter.show()
+# plotter.distribution_contourf(distribution=test_distribution, plot_spectrum=True)
+# plotter.show()
 
-for i in range(5):
-    for j in range(1000):
-        time += dt
-        flux.semi_discrete_rhs(distribution=test_distribution, elliptic=elliptic, grid=grid)
-        test_distribution.arr += dt * flux.output.arr
-    print('Took step, time is {:0.3e}'.format(time))
-    # timer.sleep(5)
-    # For plotting:
-    diff_distribution.arr = test_distribution.arr - initial_distribution.arr
-    diff_distribution.inverse_fourier_transform()
-    # zero and electric field
-    test_distribution.zero_moment.inverse_fourier_transform()
-    elliptic.field.inverse_fourier_transform()
+stepper = ts.Stepper(dt=dt, step=step, resolutions=elements, order=order, steps=1)
+final_distribution = stepper.main_loop(distribution=test_distribution, elliptic=elliptic,
+                                       grid=grid, plotter=plotter)
 
-    # Look at it:
-
-    plotter.distribution_contourf(distribution=test_distribution, plot_spectrum=True)
-    plotter.distribution_contourf(distribution=diff_distribution, plot_spectrum=False)
-    # plotter.spatial_scalar_plot(scalar=test_distribution.zero_moment, y_axis='Zero moment')
-    # plotter.spatial_scalar_plot(scalar=elliptic.field, y_axis='Electric Field', spectrum=False)
-    plotter.show()
+# for i in range(300):
+#     # for j in range(1000):
+#     #     time += dt
+#     #     flux.semi_discrete_rhs(distribution=test_distribution, elliptic=elliptic, grid=grid)
+#     #     test_distribution.arr += dt * flux.output.arr
+#     next_time = time + step
+#     sol = spint.solve_ivp(fun=flux.semi_discrete_rhs, t_span=[time, next_time],
+#                           y0=test_distribution.arr.flatten(), method='RK23', first_step=dt,
+#                           vectorized=False, args=(test_distribution, elliptic, grid))
+#     print(sol.keys)
+#     test_distribution.arr = sol[0].reshape(test_distribution.arr.shape)
+#     time += step
+#     print('Took step, time is {:0.3e}'.format(time))
+# timer.sleep(5)
+# For plotting:
+# diff_distribution.arr = deepcopy(test_distribution.arr - initial_distribution.arr)
+# diff_distribution.inverse_fourier_transform()
+# # zero and electric field
+# test_distribution.zero_moment.inverse_fourier_transform()
+# elliptic.field.inverse_fourier_transform()
+#
+# # Look at it:
+#
+# plotter.distribution_contourf(distribution=test_distribution, plot_spectrum=False)
+# # plotter.distribution_contourf(distribution=diff_distribution, plot_spectrum=False)
+# # plotter.spatial_scalar_plot(scalar=test_distribution.zero_moment, y_axis='Zero moment')
+# # plotter.spatial_scalar_plot(scalar=elliptic.field, y_axis='Electric Field', spectrum=False)
+# plotter.show()
 print('Done, it took {:0.3e}'.format(timer.time() - t0))
-
 
 elliptic.field.inverse_fourier_transform()
 print(np.amax(elliptic.field.arr_nodal))
-
-diff_distribution.arr = test_distribution.arr - initial_distribution.arr
+diff_distribution.arr = final_distribution.arr - initial_distribution.arr
 
 # zero and electric field
 test_distribution.zero_moment.inverse_fourier_transform()
