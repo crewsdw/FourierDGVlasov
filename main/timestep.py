@@ -14,6 +14,8 @@ class Stepper:
         self.flux = fx.DGFlux(resolutions=resolutions, order=order)
         self.time = 0
         self.next_time = 0
+        self.field_energy = np.array([])
+        self.time_array = np.array([])
 
     def ode_system(self, t, y, distribution, elliptic, grid):
         distribution.arr = y.reshape(self.x_res, self.v_res, self.order)
@@ -30,6 +32,8 @@ class Stepper:
                                   vectorized=False, args=(distribution, elliptic, grid))
             distribution.arr = sol.y.reshape(distribution.arr.shape)
             self.time += self.step
+            self.time_array = np.append(self.time_array, self.time)
+            self.field_energy = np.append(self.field_energy, elliptic.compute_field_energy(grid=grid))
             print('Took step, time is {:0.3e}'.format(self.time))
 
             if plot:

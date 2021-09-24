@@ -55,5 +55,12 @@ class Plotter:
             plt.xlabel('Modes'), plt.ylabel(y_axis + ' spectrum')
             plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
 
+    def time_series_plot(self, time, series):
+        plt.figure()
+        plt.plot(time, series, 'o--')
+        plt.xlabel('Time')
+        plt.ylabel('Variable')
+        plt.grid(True), plt.tight_layout()
+
     def show(self):
         plt.show()

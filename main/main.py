@@ -11,11 +11,11 @@ import timestep as ts
 from copy import deepcopy
 
 # elements and order
-elements, order = [64, 64], 5
+elements, order = [32, 32], 8
 
 # set up grid
-lows = np.array([-5 * np.pi, -11])
-highs = np.array([5 * np.pi, 11])
+lows = np.array([-5*np.pi, -6])
+highs = np.array([5*np.pi, 6])
 grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 
 # build distribution
@@ -48,15 +48,16 @@ print(np.amax(elliptic.field.arr_nodal))
 # A time-stepper (put in its own class!)
 t0 = timer.time()
 time = 0
-dt = 5.0e-3
-step = 12.0
+dt = 1.0e-2
+step = 0.1
 plotter = my_plt.Plotter(grid=grid)
-# plotter.distribution_contourf(distribution=test_distribution, plot_spectrum=True)
-# plotter.show()
+plotter.distribution_contourf(distribution=test_distribution, plot_spectrum=True)
+# plotter.spatial_scalar_plot(scalar=elliptic.field, y_axis='Electric Field', spectrum=True)
+plotter.show()
 
-stepper = ts.Stepper(dt=dt, step=step, resolutions=elements, order=order, steps=1)
+stepper = ts.Stepper(dt=dt, step=step, resolutions=elements, order=order, steps=200)
 final_distribution = stepper.main_loop(distribution=test_distribution, elliptic=elliptic,
-                                       grid=grid, plotter=plotter)
+                                       grid=grid, plotter=plotter, plot=False)
 
 # for i in range(300):
 #     # for j in range(1000):
@@ -101,6 +102,8 @@ plotter.distribution_contourf(distribution=test_distribution)
 plotter.distribution_contourf(distribution=diff_distribution)
 plotter.spatial_scalar_plot(scalar=test_distribution.zero_moment, y_axis='Zero moment')
 plotter.spatial_scalar_plot(scalar=elliptic.field, y_axis='Electric Field')
+
+plotter.time_series_plot(time=stepper.time_array, series=stepper.field_energy)
 plotter.show()
 
 # plotter.spatial_scalar_plot(scalar=test_scalar, y_axis='test')

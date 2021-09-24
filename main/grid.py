@@ -38,6 +38,9 @@ class SpaceGrid:
         self.arr = np.linspace(self.low, self.high - self.dx, num=self.elements)
         self.device_arr = np.asarray(self.arr)
 
+    def compute_moment(self, function):
+        return np.trapz(y=function, x=self.arr, axis=0)
+
 
 class VelocityGrid:
     """ In this experiment, the velocity grid is an LGL quadrature grid """
@@ -98,9 +101,9 @@ class PhaseSpace:
     def eigenfunction(self, thermal_velocity, drift_velocity, eigenvalue, beams='two-stream'):
         if beams == 'two-stream':
             df1 = self.v.compute_maxwellian_gradient(thermal_velocity=thermal_velocity,
-                                                     drift_velocity=drift_velocity)
+                                                     drift_velocity=drift_velocity[0])
             df2 = self.v.compute_maxwellian_gradient(thermal_velocity=thermal_velocity,
-                                                     drift_velocity=drift_velocity)
+                                                     drift_velocity=drift_velocity[1])
             df = 0.5 * (df1 + df2)
             v_part = np.divide(df, self.v.device_arr - eigenvalue)
             return np.tensordot(np.exp(1j * self.x.fundamental * self.x.device_arr), v_part, axes=0)

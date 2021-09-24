@@ -16,9 +16,18 @@ class Elliptic:
         distribution.zero_moment.arr_spectral[grid.x.zero_idx] -= 1.0
 
         # Compute field spectrum
-        self.field.arr_spectral = 1j * np.nan_to_num(np.divide(distribution.zero_moment.arr_spectral,
-                                                               grid.x.device_wavenumbers,
-                                                               where=grid.x.device_wavenumbers != 0))
+        self.field.arr_spectral = 1j * np.divide(distribution.zero_moment.arr_spectral,
+                                                 grid.x.device_wavenumbers,
+                                                 where=grid.x.device_wavenumbers != 0)
+        self.field.arr_spectral[grid.x.zero_idx] = 0 + 0j
+        # print(distribution.zero_moment.arr_spectral)
+        # print(self.field.arr_spectral)
+        # quit()
+        #
 
         if invert:
             self.field.inverse_fourier_transform()
+
+    def compute_field_energy(self, grid):
+        self.field.inverse_fourier_transform()
+        return grid.x.compute_moment(function=0.5 * self.field.arr_nodal ** 2.0)

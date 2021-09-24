@@ -27,8 +27,8 @@ class DGFlux:
 
     def semi_discrete_rhs(self, distribution, elliptic, grid):
         # two-thirds rule
-        distribution.arr[:grid.x.two_thirds_low, :, :] = 0.0 + 0j
-        distribution.arr[grid.x.two_thirds_high:, :, :] = 0.0 + 0j
+        # distribution.arr[:grid.x.two_thirds_low, :, :] = 0.0 + 0j
+        # distribution.arr[grid.x.two_thirds_high:, :, :] = 0.0 + 0j
         """ Computes the semi-discrete equation """
         # Do elliptic problem
         elliptic.poisson_solve(distribution=distribution, grid=grid, invert=False)

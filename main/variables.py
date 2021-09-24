@@ -26,7 +26,10 @@ class Distribution:
         self.zero_moment = SpaceScalar(resolution=resolutions[0])
 
     def compute_zero_moment(self, grid):
-        self.zero_moment.arr_spectral = grid.v.zero_moment(function=self.arr, idx=[1, 2])
+        self.inverse_fourier_transform()
+        self.zero_moment.arr_nodal = grid.v.zero_moment(function=self.arr_nodal, idx=[1, 2])
+        self.zero_moment.fourier_transform()
+        # self.zero_moment.arr_spectral = grid.v.zero_moment(function=self.arr, idx=[1, 2])
 
     def grid_flatten(self):
         return self.arr_nodal.reshape(self.x_res, self.v_res * self.order)
@@ -36,23 +39,26 @@ class Distribution:
 
     def initialize(self, grid):
         ix, iv = np.ones_like(grid.x.device_arr), np.ones_like(grid.v.device_arr)
-        maxwellian = 0.5 * (np.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=1.0/np.sqrt(2),
-                                                                       drift_velocity=3.0), axes=0) +
-                            np.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=1.0/np.sqrt(2),
-                                                                       drift_velocity=-3.0), axes=0))
+        maxwellian = 0.5 * (np.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=1.0,
+                                                                       drift_velocity=2.0), axes=0) +
+                            np.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=1.0,
+                                                                       drift_velocity=-2.0), axes=0))
 
         # compute perturbation
+        perturbation = np.real(grid.eigenfunction(thermal_velocity=1,
+                                                  drift_velocity=[2, -2],
+                                                  eigenvalue=1.2j))
         # perturbation = np.real(grid.eigenfunction(thermal_velocity=1,
         #                                           drift_velocity=2.0,
-        #                                           eigenvalue=3.0j) +
+        #                                           eigenvalue=-3.0j) +
         #                        grid.eigenfunction(thermal_velocity=1,
         #                                           drift_velocity=-2.0,
-        #                                           eigenvalue=3.0j)) / 2.0  # -1.68 - 0.4j
-        perturbation = np.multiply(np.sin(grid.x.fundamental * grid.x.device_arr)[:, None, None], maxwellian)
-                                    # grid.v.compute_maxwellian(thermal_velocity=1.0,
-                                    #                           drift_velocity=0.0),
-                                    # axes=0)
-        self.arr_nodal = maxwellian + 0.05 * perturbation
+        #                                           eigenvalue=-3.0j)) / 2.0  # -1.68 - 0.4j
+        # perturbation = np.multiply(np.sin(grid.x.fundamental * grid.x.device_arr)[:, None, None], maxwellian)
+        # grid.v.compute_maxwellian(thermal_velocity=1.0,
+        #                           drift_velocity=0.0),
+        # axes=0)
+        self.arr_nodal = maxwellian + 0.2 * perturbation
 
     def fourier_transform(self):
         self.arr = np.fft.fftshift(np.fft.fft(self.arr_nodal, axis=0, norm='forward'), axes=0)
