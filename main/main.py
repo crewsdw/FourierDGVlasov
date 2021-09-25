@@ -11,11 +11,11 @@ import timestep as ts
 from copy import deepcopy
 
 # elements and order
-elements, order = [128, 32], 8
+elements, order = [16, 25], 8
 
 # set up grid
-lows = np.array([-5*np.pi, -6])
-highs = np.array([5*np.pi, 6])
+lows = np.array([-5*np.pi, -10])
+highs = np.array([5*np.pi, 10])
 grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 
 # build distribution
@@ -48,16 +48,16 @@ print(np.amax(elliptic.field.arr_nodal))
 # A time-stepper (put in its own class!)
 t0 = timer.time()
 time = 0
-dt = 1.5e-2
-step = 0.1
-dt_max = 1.0 / (np.amax(grid.x.wavenumbers) * np.amax(grid.v.arr)) / (1.0 + 2.0 * order)
+dt = 1.0e-3
+step = 1.0e-1
+dt_max = 1.0 / (np.amax(grid.x.wavenumbers) * np.amax(grid.v.arr))
 print('Max dt is {:0.3e}'.format(dt_max))
 plotter = my_plt.Plotter(grid=grid)
 plotter.distribution_contourf(distribution=test_distribution, plot_spectrum=True)
 # plotter.spatial_scalar_plot(scalar=elliptic.field, y_axis='Electric Field', spectrum=True)
 plotter.show()
 
-stepper = ts.Stepper(dt=dt, step=step, resolutions=elements, order=order, steps=200)
+stepper = ts.Stepper(dt=dt, step=step, resolutions=elements, order=order, steps=50)
 final_distribution = stepper.main_loop(distribution=test_distribution, elliptic=elliptic,
                                        grid=grid, plotter=plotter, plot=False)
 

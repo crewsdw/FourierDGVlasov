@@ -47,7 +47,8 @@ class Distribution:
         # compute perturbation
         perturbation = np.imag(grid.eigenfunction(thermal_velocity=1,
                                                   drift_velocity=[2, -2],
-                                                  eigenvalue=1.2j))
+                                                  eigenvalue=1.20474886j))
+        # print('The expected growth rate is {:0.3e}'.format(grid.x.fundamental * 1.2))
         # perturbation = np.real(grid.eigenfunction(thermal_velocity=1,
         #                                           drift_velocity=2.0,
         #                                           eigenvalue=-3.0j) +
@@ -58,7 +59,7 @@ class Distribution:
         # grid.v.compute_maxwellian(thermal_velocity=1.0,
         #                           drift_velocity=0.0),
         # axes=0)
-        self.arr_nodal = maxwellian + 0.2 * perturbation
+        self.arr_nodal = maxwellian + 1.0e-7 * perturbation
 
     def fourier_transform(self):
         self.arr = np.fft.fftshift(np.fft.fft(self.arr_nodal, axis=0, norm='forward'), axes=0)

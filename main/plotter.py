@@ -64,6 +64,10 @@ class Plotter:
         plt.xlabel('Time')
         plt.ylabel(y_axis)
         plt.grid(True), plt.tight_layout()
+        lin_fit = np.polyfit(time, np.log(series), 1)
+        print('Numerical rate: {:0.10e}'.format(lin_fit[0]))
+        print('cf. exact rate: {:0.10e}'.format(2 * 2.409497728e-01))
+        print('The difference is {:0.10e}'.format(lin_fit[0] - 2 * 2.409497728e-01))
 
     def show(self):
         plt.show()

@@ -29,7 +29,8 @@ class Stepper:
             span = [self.time, self.next_time]
             sol = spint.solve_ivp(fun=self.ode_system, t_span=span, t_eval=[self.next_time],
                                   y0=distribution.arr.flatten(), method='RK45', max_step=self.dt,
-                                  vectorized=False, args=(distribution, elliptic, grid))
+                                  args=(distribution, elliptic, grid),
+                                  rtol=1.0e-12, atol=1.0e-12)
             distribution.arr = sol.y.reshape(distribution.arr.shape)
             self.time += self.step
             self.time_array = np.append(self.time_array, self.time)
