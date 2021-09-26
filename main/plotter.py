@@ -55,7 +55,7 @@ class Plotter:
             plt.xlabel('Modes'), plt.ylabel(y_axis + ' spectrum')
             plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
 
-    def time_series_plot(self, time, series, y_axis, log=False):
+    def time_series_plot(self, time, series, y_axis, log=False, give_rate=False):
         plt.figure()
         if log:
             plt.semilogy(time, series, 'o--')
@@ -64,10 +64,11 @@ class Plotter:
         plt.xlabel('Time')
         plt.ylabel(y_axis)
         plt.grid(True), plt.tight_layout()
-        lin_fit = np.polyfit(time, np.log(series), 1)
-        print('Numerical rate: {:0.10e}'.format(lin_fit[0]))
-        print('cf. exact rate: {:0.10e}'.format(2 * 2.409497728e-01))
-        print('The difference is {:0.10e}'.format(lin_fit[0] - 2 * 2.409497728e-01))
+        if give_rate:
+            lin_fit = np.polyfit(time, np.log(series), 1)
+            print('Numerical rate: {:0.10e}'.format(lin_fit[0]))
+            print('cf. exact rate: {:0.10e}'.format(2 * 2.409497728e-01))
+            print('The difference is {:0.10e}'.format(lin_fit[0] - 2 * 2.409497728e-01))
 
     def show(self):
         plt.show()

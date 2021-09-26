@@ -30,4 +30,5 @@ class Elliptic:
 
     def compute_field_energy(self, grid):
         self.field.inverse_fourier_transform()
-        return grid.x.compute_moment(function=0.5 * self.field.arr_nodal ** 2.0)
+        return self.field.integrate_energy(grid=grid)
+        # return grid.x.compute_moment(function=0.5 * self.field.arr_nodal ** 2.0)

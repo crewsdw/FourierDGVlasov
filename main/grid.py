@@ -81,6 +81,11 @@ class VelocityGrid:
     def zero_moment(self, function, idx):
         return np.tensordot(self.global_quads, function, axes=([0, 1], idx)) / self.J
 
+    def second_moment(self, function, idx):
+        return np.tensordot(self.global_quads, np.multiply(self.arr[None, :, :] ** 2.0,
+                                                           function),
+                            axes=([0, 1], idx)) / self.J
+
     def compute_maxwellian(self, thermal_velocity, drift_velocity):
         return np.exp(-((self.device_arr - drift_velocity) /
                         thermal_velocity) ** 2.0) / (np.sqrt(np.pi) * thermal_velocity)

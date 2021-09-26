@@ -16,6 +16,8 @@ class Stepper:
         self.next_time = 0
         self.field_energy = np.array([])
         self.time_array = np.array([])
+        self.thermal_energy = np.array([])
+        self.density_array = np.array([])
 
     def ode_system(self, t, y, distribution, elliptic, grid):
         distribution.arr = y.reshape(self.x_res, self.v_res, self.order)
@@ -35,6 +37,8 @@ class Stepper:
             self.time += self.step
             self.time_array = np.append(self.time_array, self.time)
             self.field_energy = np.append(self.field_energy, elliptic.compute_field_energy(grid=grid))
+            self.thermal_energy = np.append(self.thermal_energy, distribution.total_thermal_energy(grid=grid))
+            self.density_array = np.append(self.density_array, distribution.total_density(grid=grid))
             print('Took step, time is {:0.3e}'.format(self.time))
 
             if plot:

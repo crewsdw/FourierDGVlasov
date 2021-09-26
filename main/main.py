@@ -11,11 +11,11 @@ import timestep as ts
 from copy import deepcopy
 
 # elements and order
-elements, order = [16, 25], 8
+elements, order = [8, 20], 8
 
 # set up grid
-lows = np.array([-5*np.pi, -10])
-highs = np.array([5*np.pi, 10])
+lows = np.array([-5*np.pi, -8])
+highs = np.array([5*np.pi, 8])
 grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 
 # build distribution
@@ -105,7 +105,13 @@ plotter.distribution_contourf(distribution=diff_distribution)
 plotter.spatial_scalar_plot(scalar=test_distribution.zero_moment, y_axis='Zero moment')
 plotter.spatial_scalar_plot(scalar=elliptic.field, y_axis='Electric Field')
 plotter.time_series_plot(time=stepper.time_array, series=stepper.field_energy,
-                         y_axis='Electric energy', log=True)
+                         y_axis='Electric energy', log=True, give_rate=True)
+plotter.time_series_plot(time=stepper.time_array, series=stepper.thermal_energy,
+                         y_axis='Thermal energy', log=False)
+plotter.time_series_plot(time=stepper.time_array, series=stepper.density_array,
+                         y_axis='Total density', log=False)
+plotter.time_series_plot(time=stepper.time_array, series=stepper.field_energy + stepper.thermal_energy,
+                         y_axis='Total energy', log=False)
 plotter.show()
 
 # plotter.spatial_scalar_plot(scalar=test_scalar, y_axis='test')
