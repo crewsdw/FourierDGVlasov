@@ -74,8 +74,8 @@ class DGFlux:
         # set padded flux
         padded_flux = np.zeros((self.x_res, self.v_res + 2, self.order)) + 0j
         padded_flux[:, 1:-1, :] = self.flux.arr
-        padded_flux[:, 0, -1] = -self.flux.arr[:, 0, 0]
-        padded_flux[:, -1, 0] = -self.flux.arr[:, -1, 0]
+        padded_flux[:, 0, -1] = 0.0  # -self.flux.arr[:, 0, 0]
+        padded_flux[:, -1, 0] = 0.0  # -self.flux.arr[:, -1, 0]
 
         # Compute a central flux
         num_flux[self.boundary_slices[0]] = -1.0 * (np.roll(padded_flux[self.boundary_slices_pad[1]],
@@ -90,3 +90,9 @@ class DGFlux:
     def source_term(self, distribution, grid):
         return -1.0j * np.multiply(grid.x.device_wavenumbers[:, None, None],
                                    np.multiply(grid.v.device_arr[None, :, :], distribution.arr))
+        # print(grid.v.translation_matrix.shape)
+        # print(distribution.arr.shape)
+        # translation = np.einsum('ijk,mik->mij', grid.v.translation_matrix, distribution.arr) * grid.v.J
+        # print(translation.shape)
+        # quit()
+        # return -1.0j * np.multiply(grid.x.device_wavenumbers[:, None, None], translation)

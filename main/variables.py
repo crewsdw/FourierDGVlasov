@@ -81,7 +81,7 @@ class Distribution:
         # grid.v.compute_maxwellian(thermal_velocity=1.0,
         #                           drift_velocity=0.0),
         # axes=0)
-        self.arr_nodal = maxwellian + 1.0e-7 * perturbation  # 1.0e-1
+        self.arr_nodal = maxwellian + 2.5e-1 * perturbation  # 1.0e-7
 
     def fourier_transform(self):
         self.arr = np.fft.fftshift(np.fft.fft(self.arr_nodal, axis=0, norm='forward'), axes=0)

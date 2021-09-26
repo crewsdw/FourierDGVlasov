@@ -1,6 +1,6 @@
 import numpy as np
 # import cupy as np
-# from scipy.special import legendre
+import numpy.polynomial as poly
 import scipy.special as sp
 
 # Legendre-Gauss-Lobatto nodes and quadrature weights dictionaries
@@ -60,6 +60,7 @@ class Basis1D:
     Class containing basis-related methods
     Contains local basis properties
     """
+
     def __init__(self, order):
         # parameters
         self.order = int(order)
@@ -80,6 +81,11 @@ class Basis1D:
         self.set_mass_matrix(), self.set_inv_mass_matrix()
         self.set_internal_flux_matrix()
         self.set_numerical_flux_matrix()
+
+        # Compute translation matrix
+        # self.translation_matrix = None
+        # self.set_translation_matrix()
+        # quit()
 
     def set_eigenvalues(self):
         evs = np.array([(2.0 * s + 1) / 2.0 for s in range(self.order - 1)])
@@ -134,3 +140,27 @@ class Basis1D:
 
     def set_numerical_flux_matrix(self):
         self.numerical = np.asarray(self.inv_mass[:, np.array([0, -1])])
+
+    def set_translation_matrix(self):
+        """ Create the translation matrix for velocity DG method """
+        local_order = self.order
+        gl_nodes, gl_weights = poly.legendre.leggauss(local_order)
+        # Evaluate Legendre polynomials at finer grid
+        ps = np.array([sp.legendre(s)(gl_nodes) for s in range(self.order)])
+        # Interpolation polynomials at fine points
+        print(self.inv_vandermonde.shape)
+        # print(ps.shape)
+        ell = np.tensordot(self.inv_vandermonde, ps, axes=([0], [0]))
+        # print(ell.shape)
+        # Compute the matrix elements
+        translation_mass = np.array([[
+            sum(gl_weights[s] * gl_nodes[s] * ell[i, s] * ell[j, s] for s in range(local_order))
+            for j in range(self.order)]
+            for i in range(self.order)])
+        translation_mass[np.absolute(translation_mass) < 1.0e-10] = 0.0
+        # print(self.mass)
+        self.translation_matrix = np.matmul(self.inv_mass, translation_mass) + 0j
+        # print(np.multiply(self.nodes[:, None], self.mass))
+        # print(self.translation_matrix)
+        # print(self.nodes)
+        # quit()
