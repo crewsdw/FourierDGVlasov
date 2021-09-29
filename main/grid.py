@@ -63,12 +63,21 @@ class VelocityGrid:
 
         # arrays
         self.arr, self.device_arr = None, None
-        # self.mid_points = None
+        self.mid_points = None
         self.create_grid()
 
         # global translation matrix
-        # self.translation_matrix = np.add(self.mid_points[:, None, None], self.local_basis.translation_matrix / self.J)
-        # print(self.translation_matrix[0, :, :])
+        # print(self.mid_points)
+        # print(self.mid_points[:, None] + self.local_basis.nodes[None, :] / self.J)
+        # print(self.arr)
+        # quit()
+        mid_identity = np.tensordot(self.mid_points, np.eye(self.local_basis.order), axes=0)
+        # mid_identity = np.eye(self.mid_points)
+        self.translation_matrix = mid_identity + self.local_basis.translation_matrix / self.J
+        # print(self.local_basis.translation_matrix / self.J)
+        # print(self.translation_matrix[10, :, :])
+        # print(self.arr[10, :])
+        # quit()
         # print(self.translation_matrix[1, :, :])
         # print(self.translation_matrix.shape)
         # quit()
@@ -85,7 +94,7 @@ class VelocityGrid:
             self.arr[i, :] = xl[i] + self.dx * np.array(nodes_iso)
         # send to device
         self.device_arr = np.asarray(self.arr)
-        # self.mid_points = np.array([0.5 * (self.arr[i, -1] + self.arr[i, 0]) for i in range(self.elements)])
+        self.mid_points = np.array([0.5 * (self.arr[i, -1] + self.arr[i, 0]) for i in range(self.elements)])
 
     def zero_moment(self, function, idx):
         return np.tensordot(self.global_quads, function, axes=([0, 1], idx)) / self.J

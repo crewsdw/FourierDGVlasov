@@ -11,11 +11,11 @@ import timestep as ts
 from copy import deepcopy
 
 # elements and order
-elements, order = [100, 35], 8
+elements, order = [50, 25], 7
 
 # set up grid
-lows = np.array([-5*np.pi, -9])
-highs = np.array([5*np.pi, 9])
+lows = np.array([-5*np.pi, -8])
+highs = np.array([5*np.pi, 8])
 grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 
 # build distribution
@@ -38,26 +38,29 @@ diff_distribution = var.Distribution(resolutions=elements, order=order)
 elliptic = ell.Elliptic(resolution=elements[0])
 elliptic.poisson_solve(distribution=test_distribution, grid=grid)
 
-print(np.amax(elliptic.field.arr_nodal))
+# print(np.amax(elliptic.field.arr_nodal))
 
 # test spectral flux reconstruction
-# flux = fx.DGFlux(resolutions=elements, order=order)
-# flux.compute_flux(distribution=test_distribution, elliptic=elliptic)
+flux = fx.DGFlux(resolutions=elements, order=order)
+# flux.compute_flux(distribution=test_distribution, elliptic=elliptic, grid=grid)
 # flux.semi_discrete_rhs(distribution=test_distribution, elliptic=elliptic, grid=grid)
+#
+plotter = my_plt.Plotter(grid=grid)
+# plotter.distribution_contourf(distribution=test_distribution, plot_spectrum=True)
+# plotter.distribution_contourf(distribution=flux.flux)
+# plotter.distribution_contourf(distribution=flux.output)
+# plotter.show()
 
-# A time-stepper (put in its own class!)
+# A time-stepper
 t0 = timer.time()
 time = 0
-dt = 1.0e-2
+dt = 2.0e-2
 step = 1.0e-1
 dt_max = 1.0 / (np.amax(grid.x.wavenumbers) * np.amax(grid.v.arr))
 print('Max dt is {:0.3e}'.format(dt_max))
-plotter = my_plt.Plotter(grid=grid)
-plotter.distribution_contourf(distribution=test_distribution, plot_spectrum=True)
 # plotter.spatial_scalar_plot(scalar=elliptic.field, y_axis='Electric Field', spectrum=True)
-plotter.show()
 
-stepper = ts.Stepper(dt=dt, step=step, resolutions=elements, order=order, steps=225)
+stepper = ts.Stepper(dt=dt, step=step, resolutions=elements, order=order, steps=125)
 final_distribution = stepper.main_loop(distribution=test_distribution, elliptic=elliptic,
                                        grid=grid, plotter=plotter, plot=False)
 

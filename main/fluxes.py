@@ -88,11 +88,16 @@ class DGFlux:
         return basis_product(flux=num_flux, basis_arr=grid.v.local_basis.numerical, axis=2)
 
     def source_term(self, distribution, grid):
+        # return -1.0j * np.multiply(grid.x.device_wavenumbers[:, None, None],
+        #                            np.multiply(grid.v.device_arr[None, :, :], distribution.arr))
         return -1.0j * np.multiply(grid.x.device_wavenumbers[:, None, None],
-                                   np.multiply(grid.v.device_arr[None, :, :], distribution.arr))
-        # print(grid.v.translation_matrix.shape)
-        # print(distribution.arr.shape)
-        # translation = np.einsum('ijk,mik->mij', grid.v.translation_matrix, distribution.arr) * grid.v.J
-        # print(translation.shape)
-        # quit()
-        # return -1.0j * np.multiply(grid.x.device_wavenumbers[:, None, None], translation)
+                                   np.einsum('ijk,mik->mij', grid.v.translation_matrix, distribution.arr))
+        # orig = np.multiply(grid.v.device_arr[None, :, :], distribution.arr)
+        # # print(grid.v.translation_matrix.shape)
+        # # print(distribution.arr.shape)
+        # translation = np.einsum('ijk,mik->mij', grid.v.translation_matrix, distribution.arr)
+        # print(orig[2, 10, :])
+        # print(translation[2, 10, :])
+        # print(np.matmul(grid.v.translation_matrix[10, :, :], distribution.arr[2, 10, :]))
+        # # print(orig[16,10,:]-translation[16,10,:])
+        # # quit()
