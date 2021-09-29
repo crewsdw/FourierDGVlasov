@@ -55,10 +55,9 @@ lgl_weights = {
 }
 
 
-class Basis1D:
+class LGLBasis1D:
     """
-    Class containing basis-related methods
-    Contains local basis properties
+    Class containing basis-related methods and properties for Lobatto-Gauss-Legendre points
     """
 
     def __init__(self, order):
@@ -74,8 +73,8 @@ class Basis1D:
         self.inv_vandermonde = self.set_inv_vandermonde()
 
         # DG matrices
-        self.mass, self.inv_mass, self.face_mass = None, None, None
-        self.adv, self.stf, self.internal, self.numerical = None, None, None, None
+        self.mass, self.inv_mass = None, None
+        self.internal, self.numerical = None, None
 
         # Set matrices
         self.set_mass_matrix(), self.set_inv_mass_matrix()
@@ -85,10 +84,9 @@ class Basis1D:
         # Compute translation matrix
         self.translation_matrix = None
         self.set_translation_matrix()
-        # quit()
 
     def set_eigenvalues(self):
-        evs = np.array([(2.0 * s + 1) / 2.0 for s in range(self.order)])
+        evs = np.array([(2.0 * s + 1) / 2.0 for s in range(self.order - 1)])
         return np.append(evs, (self.order - 1) / 2.0)
 
     def set_vandermonde(self):
@@ -139,6 +137,8 @@ class Basis1D:
 
     def set_numerical_flux_matrix(self):
         self.numerical = np.asarray(self.inv_mass[:, np.array([0, -1])])
+        # print(self.numerical)
+        # quit()
 
     def set_translation_matrix(self):
         """ Create the translation matrix for velocity DG method """
@@ -146,9 +146,6 @@ class Basis1D:
         gl_nodes, gl_weights = poly.legendre.leggauss(local_order)
         # Evaluate Legendre polynomials at finer grid
         ps = np.array([sp.legendre(s)(gl_nodes) for s in range(self.order)])
-        # print(self.inv_vandermonde.shape)
-        # print(ps.shape)
-        # quit()
         # Interpolation polynomials at fine points
         ell = np.tensordot(self.inv_vandermonde, ps, axes=([0], [0]))
         # Compute the matrix elements
@@ -156,10 +153,87 @@ class Basis1D:
             sum(gl_weights[s] * gl_nodes[s] * ell[i, s] * ell[j, s] for s in range(local_order))
             for j in range(self.order)]
             for i in range(self.order)])
-        # translation_mass[np.absolute(translation_mass) < 1.0e-10] = 0.0
-        # print(self.mass)
+        # Multiply by inverse mass matrix
         self.translation_matrix = np.matmul(self.inv_mass, translation_mass) + 0j
-        # print(np.multiply(self.nodes[:, None], self.mass))
-        # print(self.translation_matrix)
-        # print(self.nodes)
+
+
+# class GLBasis1D:
+#     """
+#     Basis-related methods and properties for Gauss-Legendre points
+#     """
+#
+#     def __init__(self, order):
+#         self.order = int(order)
+#         self.nodes, self.weights = poly.legendre.leggauss(self.order)
+#         self.device_weights = np.asarray(self.weights)
+#
+#         # vandermonde matrix and inverse
+#         self.eigenvalues = self.set_eigenvalues()
+#         self.vandermonde = self.set_vandermonde()
+#         self.inv_vandermonde = self.set_inv_vandermonde()
+#
+#         # DG matrices
+#         self.mass, self.inv_mass = None, None
+#         self.internal, self.numerical = None, None
+#         self.boundary_accumulator = None
+#
+#         # Set matrices
+#         self.set_mass_matrix(), self.set_inv_mass_matrix()
+#         self.set_internal_flux_matrix()
+#         self.set_boundary_accumulator()
+#         self.set_numerical_flux_matrix()
+#
+#     def set_eigenvalues(self):
+#         return np.array([(s + 0.5) for s in range(self.order)])
+#
+#     def set_vandermonde(self):
+#         return np.array([[sp.legendre(s)(self.nodes[j])
+#                           for j in range(self.order)]
+#                          for s in range(self.order)])
+#
+#     def set_inv_vandermonde(self):
+#         return np.array([[self.weights[j] * self.eigenvalues[s] * sp.legendre(s)(self.nodes[j])
+#                           for j in range(self.order)]
+#                          for s in range(self.order)])
+#
+#     def set_mass_matrix(self):
+#         self.mass = np.diag(self.weights)
+#
+#     def set_inv_mass_matrix(self):
+#         self.inv_mass = np.diag(np.divide(1.0, self.weights))
+#
+#     def set_internal_flux_matrix(self):
+#         # Compute internal flux array
+#         up = np.zeros((self.order, self.order))
+#         for i in range(self.order):
+#             for j in range(self.order):
+#                 up[i, j] = self.weights[j] * sum(
+#                     (s + 0.5) * sp.legendre(s)(self.nodes[i]) * sp.legendre(s).deriv()(self.nodes[j])
+#                     for s in range(self.order))
+#
+#         # Clear machine errors
+#         up[np.abs(up) < 1.0e-10] = 0
+#
+#         self.internal = np.asarray(up)
+#
+#     def set_boundary_accumulator(self):
+#         left_matrix = np.array([self.weights[i] * sum(((-1) ** s) * (s + 0.5) * sp.legendre(s)(self.nodes[i])
+#                                                       for s in range(self.order))
+#                                 for i in range(self.order)])
+#         right_matrix = np.array([self.weights[i] * sum((s + 0.5) * sp.legendre(s)(self.nodes[i])
+#                                                        for s in range(self.order))
+#                                  for i in range(self.order)])
+#         self.boundary_accumulator = np.array([left_matrix, right_matrix])
+#
+#     def set_numerical_flux_matrix(self):
+#         # self.numerical = np.asarray(self.inv_mass[:, np.array([0, -1])])
+#         # print(self.numerical)
+#         # set face mass matrix
+#         face_mass_left = np.tensordot(self.boundary_accumulator[0, :], self.boundary_accumulator[0, :], axes=0)
+#         face_mass_right = np.tensordot(self.boundary_accumulator[1, :], self.boundary_accumulator[1, :], axes=0)
+#         # numerical flux array
+#         num_flux_left = np.matmul(self.inv_mass, face_mass_left)
+#         num_flux_right = np.matmul(self.inv_mass, face_mass_right)
+#         self.numerical = np.array([num_flux_left, num_flux_right])
+#         # print(self.numerical)
         # quit()

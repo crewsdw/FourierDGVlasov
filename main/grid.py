@@ -48,7 +48,8 @@ class VelocityGrid:
     def __init__(self, low, high, elements, order):
         self.low, self.high = low, high
         self.elements, self.order = elements, order
-        self.local_basis = b.Basis1D(order=self.order)
+        self.local_basis = b.LGLBasis1D(order=self.order)
+        # self.local_basis = b.GLBasis1D(order=self.order)
 
         # domain and element widths
         self.length = self.high - self.low
@@ -67,20 +68,8 @@ class VelocityGrid:
         self.create_grid()
 
         # global translation matrix
-        # print(self.mid_points)
-        # print(self.mid_points[:, None] + self.local_basis.nodes[None, :] / self.J)
-        # print(self.arr)
-        # quit()
         mid_identity = np.tensordot(self.mid_points, np.eye(self.local_basis.order), axes=0)
-        # mid_identity = np.eye(self.mid_points)
         self.translation_matrix = mid_identity + self.local_basis.translation_matrix / self.J
-        # print(self.local_basis.translation_matrix / self.J)
-        # print(self.translation_matrix[10, :, :])
-        # print(self.arr[10, :])
-        # quit()
-        # print(self.translation_matrix[1, :, :])
-        # print(self.translation_matrix.shape)
-        # quit()
 
     def create_grid(self):
         """ Build global grid """

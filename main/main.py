@@ -11,7 +11,7 @@ import timestep as ts
 from copy import deepcopy
 
 # elements and order
-elements, order = [50, 25], 7
+elements, order = [64, 30], 8
 
 # set up grid
 lows = np.array([-5*np.pi, -8])
@@ -42,9 +42,9 @@ elliptic.poisson_solve(distribution=test_distribution, grid=grid)
 
 # test spectral flux reconstruction
 flux = fx.DGFlux(resolutions=elements, order=order)
-# flux.compute_flux(distribution=test_distribution, elliptic=elliptic, grid=grid)
-# flux.semi_discrete_rhs(distribution=test_distribution, elliptic=elliptic, grid=grid)
-#
+flux.compute_flux(distribution=test_distribution, elliptic=elliptic, grid=grid)
+flux.semi_discrete_rhs(distribution=test_distribution, elliptic=elliptic, grid=grid)
+
 plotter = my_plt.Plotter(grid=grid)
 # plotter.distribution_contourf(distribution=test_distribution, plot_spectrum=True)
 # plotter.distribution_contourf(distribution=flux.flux)
@@ -54,13 +54,15 @@ plotter = my_plt.Plotter(grid=grid)
 # A time-stepper
 t0 = timer.time()
 time = 0
-dt = 2.0e-2
-step = 1.0e-1
+dt = 1.0e-2
+step = 1.0e-2
+final_time = 15.0
+steps = int(final_time // step)
 dt_max = 1.0 / (np.amax(grid.x.wavenumbers) * np.amax(grid.v.arr))
 print('Max dt is {:0.3e}'.format(dt_max))
 # plotter.spatial_scalar_plot(scalar=elliptic.field, y_axis='Electric Field', spectrum=True)
 
-stepper = ts.Stepper(dt=dt, step=step, resolutions=elements, order=order, steps=125)
+stepper = ts.Stepper(dt=dt, step=step, resolutions=elements, order=order, steps=steps)
 final_distribution = stepper.main_loop(distribution=test_distribution, elliptic=elliptic,
                                        grid=grid, plotter=plotter, plot=False)
 
