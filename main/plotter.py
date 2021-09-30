@@ -1,4 +1,4 @@
-# import cupy as np
+import cupy as cp
 import numpy as np
 import matplotlib.pyplot as plt
 # import matplotlib.animation as animation
@@ -25,17 +25,25 @@ class Plotter:
 
         # spectrum = np.log(1.0 + np.absolute(distribution.spectral_flatten().get()))
         # cb = np.linspace(np.amin(distribution.arr_nodal), np.amax(distribution.arr_nodal), num=100).get()
-        spectrum = np.log(1.0 + np.absolute(distribution.spectral_flatten()))
-        cb = np.linspace(np.amin(distribution.arr_nodal), np.amax(distribution.arr_nodal), num=100)  # 0
+        # Compute average distribution: trapz integration
+        # avg_dist = cp.sum(distribution.arr[:-1, :, :] + distribution.arr[1:, :, :], axis=0) * self.grid.v.dx / 2.0
+        # avg_dist = distribution.arr[self.grid.x.zero_idx]
+        # spectrum_to_plot = (distribution.arr - avg_dist[None, :, :]).reshape(self.grid.x.elements,
+        #                                                                      self.grid.v.elements * self.grid.v.order)
+        spectrum_to_plot = distribution.spectral_flatten()
+        spectrum_to_plot[self.grid.x.zero_idx, :] = 0.0
+        # spectrum = np.log(1.0 + np.absolute(distribution.spectral_flatten().get()))
+        spectrum = np.log(1.0 + np.absolute(spectrum_to_plot.get()))
+        cb = np.linspace(np.amin(distribution.arr_nodal.get()), np.amax(distribution.arr_nodal.get()), num=100)  # 0
         cb_s = np.linspace(np.amin(spectrum), np.amax(spectrum), num=100)
 
         plt.figure()
-        plt.contourf(self.X, self.V, distribution.grid_flatten(), cb, cmap=self.colormap)
+        plt.contourf(self.X, self.V, distribution.grid_flatten().get(), cb, cmap=self.colormap)
         plt.xlabel('x'), plt.ylabel('v'), plt.colorbar(), plt.tight_layout()
 
         if plot_spectrum:
             plt.figure()
-            plt.contourf(self.FX, self.FV, spectrum, cb_s, cmap=self.colormap)
+            plt.contourf(self.FX, self.FV, spectrum, cb_s)  # , cmap=self.colormap)
             plt.xlabel('mode'), plt.ylabel('v'), plt.colorbar(), plt.tight_layout()
 
     def spatial_scalar_plot(self, scalar, y_axis, spectrum=True):
@@ -43,19 +51,20 @@ class Plotter:
             scalar.inverse_fourier_transform()
 
         plt.figure()
-        plt.plot(self.x.flatten(), scalar.arr_nodal.flatten(), 'o')
+        plt.plot(self.x.flatten(), scalar.arr_nodal.flatten().get(), 'o')
         plt.xlabel('x'), plt.ylabel(y_axis)
         plt.grid(True), plt.tight_layout()
 
         if spectrum:
             plt.figure()
-            spectrum = scalar.arr_spectral.flatten()
+            spectrum = scalar.arr_spectral.flatten().get()
             plt.plot(self.k.flatten(), np.real(spectrum), 'ro', label='real')
             plt.plot(self.k.flatten(), np.imag(spectrum), 'go', label='imaginary')
             plt.xlabel('Modes'), plt.ylabel(y_axis + ' spectrum')
             plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
 
-    def time_series_plot(self, time, series, y_axis, log=False, give_rate=False):
+    def time_series_plot(self, time_in, series_in, y_axis, log=False, give_rate=False):
+        time, series = time_in, series_in.get()
         plt.figure()
         if log:
             plt.semilogy(time, series, 'o--')

@@ -1,5 +1,5 @@
 import numpy as np
-# import cupy as np
+import cupy as cp
 import numpy.polynomial as poly
 import scipy.special as sp
 
@@ -133,10 +133,10 @@ class LGLBasis1D:
         # Clear machine errors
         up[np.abs(up) < 1.0e-10] = 0
 
-        self.internal = np.asarray(up)
+        self.internal = cp.asarray(up)
 
     def set_numerical_flux_matrix(self):
-        self.numerical = np.asarray(self.inv_mass[:, np.array([0, -1])])
+        self.numerical = cp.asarray(self.inv_mass[:, np.array([0, -1])])
         # print(self.numerical)
         # quit()
 

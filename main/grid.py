@@ -1,5 +1,5 @@
 import numpy as np
-# import cupy as np
+import cupy as cp
 import basis as b
 import scipy.special as sp
 
@@ -26,7 +26,7 @@ class SpaceGrid:
         self.modes = elements // 2.0  # Nyquist frequency
         self.fundamental = 2.0 * np.pi / self.length
         self.wavenumbers = self.fundamental * np.arange(-self.modes, self.modes)
-        self.device_wavenumbers = np.array(self.wavenumbers)
+        self.device_wavenumbers = cp.array(self.wavenumbers)
         self.zero_idx = int(self.modes)
         # self.two_thirds_low = int((1 * self.modes)//3 + 1)
         # self.two_thirds_high = self.wavenumbers.shape[0] - self.two_thirds_low
@@ -37,10 +37,10 @@ class SpaceGrid:
     def create_grid(self):
         """ Build evenly spaced grid, assumed periodic """
         self.arr = np.linspace(self.low, self.high - self.dx, num=self.elements)
-        self.device_arr = np.asarray(self.arr)
+        self.device_arr = cp.asarray(self.arr)
 
     def compute_moment(self, function):
-        return np.trapz(y=function, x=self.arr, axis=0)
+        return cp.trapz(y=function, x=self.device_arr, axis=0)
 
 
 class VelocityGrid:
@@ -59,8 +59,8 @@ class VelocityGrid:
         self.J = 2.0 / self.dx
 
         # global quad weights
-        self.global_quads = np.tensordot(np.ones(elements),
-                                         np.asarray(self.local_basis.weights), axes=0)
+        self.global_quads = cp.tensordot(cp.ones(elements),
+                                         cp.asarray(self.local_basis.weights), axes=0)
 
         # arrays
         self.arr, self.device_arr = None, None
@@ -69,7 +69,7 @@ class VelocityGrid:
 
         # global translation matrix
         mid_identity = np.tensordot(self.mid_points, np.eye(self.local_basis.order), axes=0)
-        self.translation_matrix = mid_identity + self.local_basis.translation_matrix / self.J
+        self.translation_matrix = cp.asarray(mid_identity + self.local_basis.translation_matrix / self.J)
 
     def create_grid(self):
         """ Build global grid """
@@ -82,19 +82,19 @@ class VelocityGrid:
         for i in range(self.elements):
             self.arr[i, :] = xl[i] + self.dx * np.array(nodes_iso)
         # send to device
-        self.device_arr = np.asarray(self.arr)
+        self.device_arr = cp.asarray(self.arr)
         self.mid_points = np.array([0.5 * (self.arr[i, -1] + self.arr[i, 0]) for i in range(self.elements)])
 
     def zero_moment(self, function, idx):
-        return np.tensordot(self.global_quads, function, axes=([0, 1], idx)) / self.J
+        return cp.tensordot(self.global_quads, function, axes=([0, 1], idx)) / self.J
 
     def second_moment(self, function, idx):
-        return np.tensordot(self.global_quads, np.multiply(self.arr[None, :, :] ** 2.0,
+        return cp.tensordot(self.global_quads, cp.multiply(self.device_arr[None, :, :] ** 2.0,
                                                            function),
                             axes=([0, 1], idx)) / self.J
 
     def compute_maxwellian(self, thermal_velocity, drift_velocity):
-        return np.exp(-((self.device_arr - drift_velocity) /
+        return cp.exp(-((self.device_arr - drift_velocity) /
                         thermal_velocity) ** 2.0) / (np.sqrt(np.pi) * thermal_velocity)
 
     def compute_maxwellian_gradient(self, thermal_velocity, drift_velocity):
@@ -118,5 +118,5 @@ class PhaseSpace:
             df2 = self.v.compute_maxwellian_gradient(thermal_velocity=thermal_velocity,
                                                      drift_velocity=drift_velocity[1])
             df = 0.5 * (df1 + df2)
-            v_part = np.divide(df, self.v.device_arr - eigenvalue)
-            return np.tensordot(np.exp(1j * self.x.fundamental * self.x.device_arr), v_part, axes=0)
+            v_part = cp.divide(df, self.v.device_arr - eigenvalue)
+            return cp.tensordot(cp.exp(1j * self.x.fundamental * self.x.device_arr), v_part, axes=0)

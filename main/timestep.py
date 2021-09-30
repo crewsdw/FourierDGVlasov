@@ -3,6 +3,7 @@ import scipy.integrate as spint
 import time as timer
 import fluxes as fx
 import variables as var
+import cupy as cp
 
 
 nonlinear_ssp_rk_switch = {
@@ -49,12 +50,13 @@ class Stepper:
             # distribution.arr = sol.y.reshape(distribution.arr.shape)
             self.ssprk3(distribution=distribution, elliptic=elliptic, grid=grid)
             self.time += self.step
-            self.time_array = np.append(self.time_array, self.time)
-            elliptic.poisson_solve(distribution=distribution, grid=grid)
-            self.field_energy = np.append(self.field_energy, elliptic.compute_field_energy(grid=grid))
-            self.thermal_energy = np.append(self.thermal_energy, distribution.total_thermal_energy(grid=grid))
-            self.density_array = np.append(self.density_array, distribution.total_density(grid=grid))
-            print('Took step, time is {:0.3e}'.format(self.time))
+            if i % 10 == 0:
+                self.time_array = np.append(self.time_array, self.time)
+                elliptic.poisson_solve(distribution=distribution, grid=grid)
+                self.field_energy = np.append(self.field_energy, elliptic.compute_field_energy(grid=grid))
+                self.thermal_energy = np.append(self.thermal_energy, distribution.total_thermal_energy(grid=grid))
+                self.density_array = np.append(self.density_array, distribution.total_density(grid=grid))
+                print('Took step, time is {:0.3e}'.format(self.time))
 
             if plot:
                 plotter.distribution_contourf(distribution=distribution, plot_spectrum=False)

@@ -1,10 +1,10 @@
 import numpy as np
-# import cupy as np
+import cupy as cp
 import variables as var
 
 
 def basis_product(flux, basis_arr, axis):
-    return np.tensordot(flux, basis_arr,
+    return cp.tensordot(flux, basis_arr,
                         axes=([axis], [1]))
 
 
@@ -41,14 +41,14 @@ class DGFlux:
     def compute_flux(self, distribution, elliptic, grid):
         """ Compute the flux convolution(field, distribution) using pseudospectral method """
         # Zero-pad spectrum
-        padded_field_spectrum = np.pad(elliptic.field.arr_spectral, grid.x.pad_width)
-        padded_dist_spectrum = np.pad(distribution.arr, grid.x.pad_width)[:, grid.x.pad_width:-grid.x.pad_width,
+        padded_field_spectrum = cp.pad(elliptic.field.arr_spectral, grid.x.pad_width)
+        padded_dist_spectrum = cp.pad(distribution.arr, grid.x.pad_width)[:, grid.x.pad_width:-grid.x.pad_width,
                                                                              grid.x.pad_width:-grid.x.pad_width]
         # Pseudospectral product
-        field_nodal = np.real(np.fft.ifft(np.fft.fftshift(padded_field_spectrum, axes=0), norm='forward', axis=0))
-        distr_nodal = np.real(np.fft.ifft(np.fft.fftshift(padded_dist_spectrum, axes=0), norm='forward', axis=0))
-        nodal_flux = np.multiply(field_nodal[:, None, None], distr_nodal)
-        self.flux.arr = np.fft.fftshift(np.fft.fft(
+        field_nodal = cp.real(cp.fft.ifft(cp.fft.fftshift(padded_field_spectrum, axes=0), norm='forward', axis=0))
+        distr_nodal = cp.real(cp.fft.ifft(cp.fft.fftshift(padded_dist_spectrum, axes=0), norm='forward', axis=0))
+        nodal_flux = cp.multiply(field_nodal[:, None, None], distr_nodal)
+        self.flux.arr = cp.fft.fftshift(cp.fft.fft(
             nodal_flux, axis=0, norm='forward'), axes=0
         )[grid.x.pad_width:-grid.x.pad_width, :, :]
 
@@ -58,58 +58,58 @@ class DGFlux:
 
     def numerical_flux_lgl(self, grid):
         # Allocate
-        num_flux = np.zeros(self.num_flux_size) + 0j
+        num_flux = cp.zeros(self.num_flux_size) + 0j
 
         # set padded flux
-        padded_flux = np.zeros((self.x_res, self.v_res + 2, self.order)) + 0j
+        padded_flux = cp.zeros((self.x_res, self.v_res + 2, self.order)) + 0j
         padded_flux[:, 1:-1, :] = self.flux.arr
         padded_flux[:, 0, -1] = 0.0  # -self.flux.arr[:, 0, 0]
         padded_flux[:, -1, 0] = 0.0  # -self.flux.arr[:, -1, 0]
 
         # Compute a central flux
-        num_flux[self.boundary_slices[0]] = -1.0 * (np.roll(padded_flux[self.boundary_slices_pad[1]],
+        num_flux[self.boundary_slices[0]] = -1.0 * (cp.roll(padded_flux[self.boundary_slices_pad[1]],
                                                             shift=+1, axis=1)[:, 1:-1] +
                                                     self.flux.arr[self.boundary_slices[0]]) / 2.0
-        num_flux[self.boundary_slices[1]] = (np.roll(padded_flux[self.boundary_slices_pad[0]],
+        num_flux[self.boundary_slices[1]] = (cp.roll(padded_flux[self.boundary_slices_pad[0]],
                                                      shift=-1, axis=1)[:, 1:-1] +
                                              self.flux.arr[self.boundary_slices[1]]) / 2.0
 
         return basis_product(flux=num_flux, basis_arr=grid.v.local_basis.numerical, axis=2)
 
     def source_term_lgl(self, distribution, grid):
-        return -1.0j * np.multiply(grid.x.device_wavenumbers[:, None, None],
-                                   np.einsum('ijk,mik->mij', grid.v.translation_matrix, distribution.arr))
+        return -1.0j * cp.multiply(grid.x.device_wavenumbers[:, None, None],
+                                   cp.einsum('ijk,mik->mij', grid.v.translation_matrix, distribution.arr))
 
     # def source_term_gl(self, distribution, grid):
-    #     return -1.0j * np.multiply(grid.x.device_wavenumbers[:, None, None],
-    #                                np.multiply(grid.v.device_arr[None, :, :], distribution.arr))
+    #     return -1.0j * cp.multiply(grid.x.device_wavenumbers[:, None, None],
+    #                                cp.multiply(grid.v.device_arr[None, :, :], distribution.arr))
     #
     # def numerical_flux_gl(self, grid):
     #     # Allocate
-    #     num_flux = np.zeros(self.num_flux_size) + 0j
-    #     boundary_flux = np.zeros((self.x_res, self.v_res + 2, 2)) + 0j
+    #     num_flux = cp.zeros(self.num_flux_size) + 0j
+    #     boundary_flux = cp.zeros((self.x_res, self.v_res + 2, 2)) + 0j
     #
     #     # Accumulate on boundaries
     #     print(self.flux.arr.shape)
     #     print(grid.v.local_basis.boundary_accumulator.shape)
-    #     left_nodes = np.tensordot(self.flux.arr,
+    #     left_nodes = cp.tensordot(self.flux.arr,
     #                                              grid.v.local_basis.boundary_accumulator[0, :],
     #                                              axes=([2], [0]))
     #     print(left_nodes.shape)
     #     quit()
-    #     boundary_flux[:, 1:-1, 0] = np.tensordot(self.flux.arr,
+    #     boundary_flux[:, 1:-1, 0] = cp.tensordot(self.flux.arr,
     #                                              grid.v.local_basis.boundary_accumulator[0, :],
     #                                              axes=([2], [0]))
-    #     boundary_flux[:, 1:-1, 1] = np.tensordot(self.flux.arr,
+    #     boundary_flux[:, 1:-1, 1] = cp.tensordot(self.flux.arr,
     #                                              grid.v.local_basis.boundary_accumulator[1, :],
     #                                              axes=([2], [0]))
     #     print(self.flux.arr[2, 9, :])
     #     print(boundary_flux[2, 10, :])
     #
     #     # compute a central flux
-    #     num_flux[:, :, 0] = -1.0 * (np.roll(boundary_flux[:, :, 1], shift=+1, axis=1)[:, 1:-1] +
+    #     num_flux[:, :, 0] = -1.0 * (cp.roll(boundary_flux[:, :, 1], shift=+1, axis=1)[:, 1:-1] +
     #                                 boundary_flux[:, 1:-1, 0]) / 2.0
-    #     num_flux[:, :, 1] = (np.roll(boundary_flux[:, :, 0], shift=-1, axis=1)[:, 1:-1] +
+    #     num_flux[:, :, 1] = (cp.roll(boundary_flux[:, :, 0], shift=-1, axis=1)[:, 1:-1] +
     #                          boundary_flux[:, 1:-1, 1]) / 2.0
     #     print(num_flux[2, 9, :])
     #

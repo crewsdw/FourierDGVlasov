@@ -6,16 +6,16 @@ import elliptic as ell
 import plotter as my_plt
 import fluxes as fx
 import time as timer
-import scipy.integrate as spint
+# import scipy.integrate as spint
 import timestep as ts
 from copy import deepcopy
 
 # elements and order
-elements, order = [64, 30], 8
+elements, order = [128, 50], 10
 
 # set up grid
-lows = np.array([-5*np.pi, -8])
-highs = np.array([5*np.pi, 8])
+lows = np.array([-5*np.pi, -9])
+highs = np.array([5*np.pi, 9])
 grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 
 # build distribution
@@ -54,9 +54,9 @@ plotter = my_plt.Plotter(grid=grid)
 # A time-stepper
 t0 = timer.time()
 time = 0
-dt = 1.0e-2
-step = 1.0e-2
-final_time = 15.0
+dt = 5.0e-3
+step = 5.0e-3
+final_time = 22.5
 steps = int(final_time // step)
 dt_max = 1.0 / (np.amax(grid.x.wavenumbers) * np.amax(grid.v.arr))
 print('Max dt is {:0.3e}'.format(dt_max))
@@ -109,13 +109,13 @@ plotter.distribution_contourf(distribution=test_distribution)
 plotter.distribution_contourf(distribution=diff_distribution)
 plotter.spatial_scalar_plot(scalar=test_distribution.zero_moment, y_axis='Zero moment')
 plotter.spatial_scalar_plot(scalar=elliptic.field, y_axis='Electric Field')
-plotter.time_series_plot(time=stepper.time_array, series=stepper.field_energy,
+plotter.time_series_plot(time_in=stepper.time_array, series_in=stepper.field_energy,
                          y_axis='Electric energy', log=True, give_rate=True)
-plotter.time_series_plot(time=stepper.time_array, series=stepper.thermal_energy,
+plotter.time_series_plot(time_in=stepper.time_array, series_in=stepper.thermal_energy,
                          y_axis='Thermal energy', log=False)
-plotter.time_series_plot(time=stepper.time_array, series=stepper.density_array,
+plotter.time_series_plot(time_in=stepper.time_array, series_in=stepper.density_array,
                          y_axis='Total density', log=False)
-plotter.time_series_plot(time=stepper.time_array, series=stepper.field_energy + stepper.thermal_energy,
+plotter.time_series_plot(time_in=stepper.time_array, series_in=stepper.field_energy + stepper.thermal_energy,
                          y_axis='Total energy', log=False)
 plotter.show()
 
