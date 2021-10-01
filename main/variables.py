@@ -60,9 +60,9 @@ class Distribution:
     def initialize(self, grid):
         ix, iv = cp.ones_like(grid.x.device_arr), cp.ones_like(grid.v.device_arr)
         maxwellian = 0.5 * (cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=1.0,
-                                                                       drift_velocity=2.0), axes=0) +
+                                                                       drift_velocity=0.0), axes=0) +
                             cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=1.0,
-                                                                       drift_velocity=-2.0), axes=0))
+                                                                       drift_velocity=0.0), axes=0))
 
         # compute perturbation
         perturbation = cp.imag(grid.eigenfunction(thermal_velocity=1,
@@ -75,12 +75,12 @@ class Distribution:
         #                        grid.eigenfunction(thermal_velocity=1,
         #                                           drift_velocity=-2.0,
         #                                           eigenvalue=-3.0j)) / 2.0  # -1.68 - 0.4j
-        # perturbation = np.multiply(np.sin(grid.x.fundamental * grid.x.device_arr)[:, None, None], maxwellian)
+        perturbation = np.multiply(np.sin(grid.x.fundamental * grid.x.device_arr)[:, None, None], maxwellian)
         # grid.v.compute_maxwellian(thermal_velocity=1.0,
         #                           drift_velocity=0.0),
         # axes=0)
         # self.arr_nodal = maxwellian + 1.0e-7 * perturbation
-        self.arr_nodal = maxwellian + 2.5e-1 * perturbation
+        self.arr_nodal = maxwellian + 5.0e-1 * perturbation
 
     def fourier_transform(self):
         self.arr = cp.fft.fftshift(cp.fft.fft(self.arr_nodal, axis=0, norm='forward'), axes=0)

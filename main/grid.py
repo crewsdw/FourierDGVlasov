@@ -1,7 +1,6 @@
 import numpy as np
 import cupy as cp
 import basis as b
-import scipy.special as sp
 
 
 class SpaceGrid:
@@ -38,9 +37,6 @@ class SpaceGrid:
         """ Build evenly spaced grid, assumed periodic """
         self.arr = np.linspace(self.low, self.high - self.dx, num=self.elements)
         self.device_arr = cp.asarray(self.arr)
-
-    def compute_moment(self, function):
-        return cp.trapz(y=function, x=self.device_arr, axis=0)
 
 
 class VelocityGrid:

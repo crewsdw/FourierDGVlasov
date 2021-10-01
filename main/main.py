@@ -11,11 +11,11 @@ import timestep as ts
 from copy import deepcopy
 
 # elements and order
-elements, order = [128, 50], 10
+elements, order = [64, 80], 8
 
 # set up grid
-lows = np.array([-5*np.pi, -9])
-highs = np.array([5*np.pi, 9])
+lows = np.array([-2*np.pi, -9])
+highs = np.array([2*np.pi, 9])
 grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 
 # build distribution
@@ -46,17 +46,19 @@ flux.compute_flux(distribution=test_distribution, elliptic=elliptic, grid=grid)
 flux.semi_discrete_rhs(distribution=test_distribution, elliptic=elliptic, grid=grid)
 
 plotter = my_plt.Plotter(grid=grid)
-# plotter.distribution_contourf(distribution=test_distribution, plot_spectrum=True)
+plotter.distribution_contourf(distribution=test_distribution, plot_spectrum=True)
+plotter.spatial_scalar_plot(scalar=test_distribution.zero_moment, y_axis='Zero moment')
+plotter.spatial_scalar_plot(scalar=elliptic.field, y_axis='Electric Field')
 # plotter.distribution_contourf(distribution=flux.flux)
 # plotter.distribution_contourf(distribution=flux.output)
-# plotter.show()
+plotter.show()
 
 # A time-stepper
 t0 = timer.time()
 time = 0
 dt = 5.0e-3
 step = 5.0e-3
-final_time = 22.5
+final_time = 10.0  # 22.5
 steps = int(final_time // step)
 dt_max = 1.0 / (np.amax(grid.x.wavenumbers) * np.amax(grid.v.arr))
 print('Max dt is {:0.3e}'.format(dt_max))
