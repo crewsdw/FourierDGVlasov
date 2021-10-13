@@ -83,7 +83,8 @@ class Distribution:
             perturbation = self.charge_mass * cp.real(grid.eigenfunction(thermal_velocity=vt,
                                                                          drift_velocity=0,
                                                                          beams='one',
-                                                                         eigenvalue=0.339 - 0.217j))
+                                                                         eigenvalue=0.47937843 - 0.30636386j))
+            # 0.33897174 - 0.21663196j))
         else:
             perturbation = 0
         # grid.v.compute_maxwellian(thermal_velocity=1.0,

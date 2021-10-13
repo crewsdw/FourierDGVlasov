@@ -112,7 +112,7 @@ class PhaseSpace:
         if beams == 'one':
             df = self.v.compute_maxwellian_gradient(thermal_velocity=thermal_velocity,
                                                     drift_velocity=drift_velocity)
-            v_part = df / (self.v.device_arr - eigenvalue)
+            v_part = -1 * df / (eigenvalue - self.x.fundamental * self.v.device_arr)
             return cp.tensordot(cp.exp(1j * self.x.fundamental * self.x.device_arr), v_part, axes=0)
 
         if beams == 'two-stream':

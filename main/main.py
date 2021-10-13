@@ -12,8 +12,9 @@ from copy import deepcopy
 elements, order = [32, 80], 8
 mass_ratio = 10
 mass_sqrt = np.sqrt(mass_ratio)
+temp_sqrt = np.sqrt(10)
 vt_e = 1
-vt_p = 0.1 * vt_e / mass_sqrt
+vt_p = vt_e / mass_sqrt / temp_sqrt
 
 # set up grids
 wave_number = 0.5
