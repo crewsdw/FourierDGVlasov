@@ -22,11 +22,12 @@ class SpaceGrid:
         self.create_grid()
 
         # spectral properties
-        self.modes = elements // 2.0  # Nyquist frequency
+        self.modes = elements // 2 + 1  # Nyquist frequency
         self.fundamental = 2.0 * np.pi / self.length
-        self.wavenumbers = self.fundamental * np.arange(-self.modes, self.modes)
+        # self.wavenumbers = self.fundamental * np.arange(-self.modes, self.modes)
+        self.wavenumbers = self.fundamental * np.arange(self.modes)
         self.device_wavenumbers = cp.array(self.wavenumbers)
-        self.zero_idx = int(self.modes)
+        self.zero_idx = 0  # int(self.modes)
         # self.two_thirds_low = int((1 * self.modes)//3 + 1)
         # self.two_thirds_high = self.wavenumbers.shape[0] - self.two_thirds_low
         self.pad_width = int((1 * self.modes)//3 + 1)
@@ -108,6 +109,12 @@ class PhaseSpace:
     #     return np.fft.fft(function, axis=0)
 
     def eigenfunction(self, thermal_velocity, drift_velocity, eigenvalue, beams='two-stream'):
+        if beams == 'one':
+            df = self.v.compute_maxwellian_gradient(thermal_velocity=thermal_velocity,
+                                                    drift_velocity=drift_velocity)
+            v_part = df / (self.v.device_arr - eigenvalue)
+            return cp.tensordot(cp.exp(1j * self.x.fundamental * self.x.device_arr), v_part, axes=0)
+
         if beams == 'two-stream':
             df1 = self.v.compute_maxwellian_gradient(thermal_velocity=thermal_velocity,
                                                      drift_velocity=drift_velocity[0])

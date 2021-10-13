@@ -23,25 +23,18 @@ class Plotter:
         if distribution.arr is None:
             distribution.fourier_transform()
 
-        # spectrum = np.log(1.0 + np.absolute(distribution.spectral_flatten().get()))
-        # cb = np.linspace(np.amin(distribution.arr_nodal), np.amax(distribution.arr_nodal), num=100).get()
-        # Compute average distribution: trapz integration
-        # avg_dist = cp.sum(distribution.arr[:-1, :, :] + distribution.arr[1:, :, :], axis=0) * self.grid.v.dx / 2.0
-        # avg_dist = distribution.arr[self.grid.x.zero_idx]
-        # spectrum_to_plot = (distribution.arr - avg_dist[None, :, :]).reshape(self.grid.x.elements,
-        #                                                                      self.grid.v.elements * self.grid.v.order)
-        spectrum_to_plot = distribution.spectral_flatten()
-        spectrum_to_plot[self.grid.x.zero_idx, :] = 0.0
-        # spectrum = np.log(1.0 + np.absolute(distribution.spectral_flatten().get()))
-        spectrum = np.log(1.0 + np.absolute(spectrum_to_plot.get()))
-        cb = np.linspace(np.amin(distribution.arr_nodal.get()), np.amax(distribution.arr_nodal.get()), num=100)  # 0
-        cb_s = np.linspace(np.amin(spectrum), np.amax(spectrum), num=100)
+        cb = np.linspace(np.amin(distribution.arr_nodal.get()), np.amax(distribution.arr_nodal.get()), num=100)
 
         plt.figure()
         plt.contourf(self.X, self.V, distribution.grid_flatten().get(), cb, cmap=self.colormap)
         plt.xlabel('x'), plt.ylabel('v'), plt.colorbar(), plt.tight_layout()
 
         if plot_spectrum:
+            spectrum_to_plot = distribution.spectral_flatten()
+            spectrum_to_plot[self.grid.x.zero_idx, :] = 0.0
+            spectrum = np.log(1.0 + np.absolute(spectrum_to_plot.get()))
+            cb_s = np.linspace(np.amin(spectrum), np.amax(spectrum), num=100)
+
             plt.figure()
             plt.contourf(self.FX, self.FV, spectrum, cb_s)  # , cmap=self.colormap)
             plt.xlabel('mode'), plt.ylabel('v'), plt.colorbar(), plt.tight_layout()

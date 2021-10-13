@@ -8,10 +8,12 @@ class SpaceScalar:
         self.arr_nodal, self.arr_spectral = None, None
 
     def fourier_transform(self):
-        self.arr_spectral = cp.fft.fftshift(cp.fft.fft(self.arr_nodal, norm='forward'))
+        # self.arr_spectral = cp.fft.fftshift(cp.fft.fft(self.arr_nodal, norm='forward'))
+        self.arr_spectral = cp.fft.rfft(self.arr_nodal, norm='forward')
 
     def inverse_fourier_transform(self):
-        self.arr_nodal = cp.real(cp.fft.ifft(cp.fft.fftshift(self.arr_spectral), norm='forward'))
+        # self.arr_nodal = cp.real(cp.fft.ifft(cp.fft.fftshift(self.arr_spectral), norm='forward'))
+        self.arr_nodal = cp.fft.irfft(self.arr_spectral, norm='forward')
 
     def integrate(self, grid):
         arr_add = cp.append(self.arr_nodal, self.arr_nodal[0])
@@ -26,9 +28,10 @@ class SpaceScalar:
 
 
 class Distribution:
-    def __init__(self, resolutions, order):
+    def __init__(self, resolutions, order, charge_mass):
         self.x_res, self.v_res = resolutions
         self.order = order
+        self.charge_mass = charge_mass
 
         # arrays
         self.arr, self.arr_nodal = None, None
@@ -57,17 +60,17 @@ class Distribution:
     def spectral_flatten(self):
         return self.arr.reshape(self.arr.shape[0], self.v_res * self.order)
 
-    def initialize(self, grid):
+    def initialize(self, grid, vt, perturbation=True):
         ix, iv = cp.ones_like(grid.x.device_arr), cp.ones_like(grid.v.device_arr)
-        maxwellian = 0.5 * (cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=1.0,
+        maxwellian = 0.5 * (cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=vt,
                                                                        drift_velocity=0.0), axes=0) +
-                            cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=1.0,
+                            cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=vt,
                                                                        drift_velocity=0.0), axes=0))
 
         # compute perturbation
-        perturbation = cp.imag(grid.eigenfunction(thermal_velocity=1,
-                                                  drift_velocity=[2, -2],
-                                                  eigenvalue=1.20474886j))
+        # perturbation = cp.imag(grid.eigenfunction(thermal_velocity=1,
+        #                                           drift_velocity=[2, -2],
+        #                                           eigenvalue=1.20474886j))
         # print('The expected growth rate is {:0.3e}'.format(grid.x.fundamental * 1.2))
         # perturbation = np.real(grid.eigenfunction(thermal_velocity=1,
         #                                           drift_velocity=2.0,
@@ -75,18 +78,27 @@ class Distribution:
         #                        grid.eigenfunction(thermal_velocity=1,
         #                                           drift_velocity=-2.0,
         #                                           eigenvalue=-3.0j)) / 2.0  # -1.68 - 0.4j
-        perturbation = np.multiply(np.sin(grid.x.fundamental * grid.x.device_arr)[:, None, None], maxwellian)
+        if perturbation:
+            # perturbation = np.multiply(np.sin(grid.x.fundamental * grid.x.device_arr)[:, None, None], maxwellian)
+            perturbation = self.charge_mass * cp.real(grid.eigenfunction(thermal_velocity=vt,
+                                                                         drift_velocity=0,
+                                                                         beams='one',
+                                                                         eigenvalue=0.339 - 0.217j))
+        else:
+            perturbation = 0
         # grid.v.compute_maxwellian(thermal_velocity=1.0,
         #                           drift_velocity=0.0),
         # axes=0)
         # self.arr_nodal = maxwellian + 1.0e-7 * perturbation
-        self.arr_nodal = maxwellian + 5.0e-1 * perturbation
+        self.arr_nodal = maxwellian + 1.0e-2 * perturbation
 
     def fourier_transform(self):
-        self.arr = cp.fft.fftshift(cp.fft.fft(self.arr_nodal, axis=0, norm='forward'), axes=0)
+        # self.arr = cp.fft.fftshift(cp.fft.fft(self.arr_nodal, axis=0, norm='forward'), axes=0)
+        self.arr = cp.fft.rfft(self.arr_nodal, axis=0, norm='forward')
 
     def inverse_fourier_transform(self):
-        self.arr_nodal = cp.real(cp.fft.ifft(cp.fft.fftshift(self.arr, axes=0), norm='forward', axis=0))
+        # self.arr_nodal = cp.real(cp.fft.ifft(cp.fft.fftshift(self.arr, axes=0), norm='forward', axis=0))
+        self.arr_nodal = cp.fft.irfft(self.arr, axis=0, norm='forward')
 
 
 def trapz(y, dx):

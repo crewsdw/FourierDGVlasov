@@ -8,21 +8,20 @@ class Elliptic:
         self.potential = var.SpaceScalar(resolution=resolution)
         self.field = var.SpaceScalar(resolution=resolution)
 
-    def poisson_solve(self, distribution, grid, invert=True):
+    def poisson_solve(self, distribution_e, distribution_p, grids, invert=True):
         # Compute zeroth moment, integrate(c_n(v)dv)
-        distribution.compute_zero_moment(grid=grid)
+        distribution_e.compute_zero_moment(grid=grids[0])
+        distribution_p.compute_zero_moment(grid=grids[1])
 
         # Adjust for charge neutrality
-        distribution.zero_moment.arr_spectral[grid.x.zero_idx] -= 1.0
+        # distribution_e.zero_moment.arr_spectral[grid.x.zero_idx] -= 1.0
+        # distribution_p.zero_moment.arr_spectral[grid.x.zero_idx] -= 1.0
 
         # Compute field spectrum
-        self.field.arr_spectral = 1j * cp.nan_to_num(cp.divide(distribution.zero_moment.arr_spectral,
-                                                               grid.x.device_wavenumbers))
-        self.field.arr_spectral[grid.x.zero_idx] = 0 + 0j
-        # print(distribution.zero_moment.arr_spectral)
-        # print(self.field.arr_spectral)
-        # quit()
-        #
+        self.field.arr_spectral = -1j * cp.nan_to_num(cp.divide((distribution_p.zero_moment.arr_spectral -
+                                                                 distribution_e.zero_moment.arr_spectral),
+                                                                grids[0].x.device_wavenumbers))
+        self.field.arr_spectral[grids[0].x.zero_idx] = 0 + 0j
 
         if invert:
             self.field.inverse_fourier_transform()

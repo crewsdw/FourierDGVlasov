@@ -9,8 +9,9 @@ def basis_product(flux, basis_arr, axis):
 
 
 class DGFlux:
-    def __init__(self, resolutions, order):
-        self.x_res, self.v_res = resolutions
+    def __init__(self, resolutions, order, charge_mass):
+        self.x_ele, self.v_res = resolutions
+        self.x_res = int(self.x_ele // 2 + 1)
         self.order = order
 
         # slices into the DG boundaries (list of tuples)
@@ -21,14 +22,18 @@ class DGFlux:
         # self.flux_slice = [(slice(resolution), slice(order))]  # not necessary
         self.num_flux_size = (self.x_res, self.v_res, 2)
 
+        # for array padding
+        self.pad_field, self.pad_spectrum = None, None
+
         # arrays
-        self.flux = var.Distribution(resolutions=resolutions, order=order)
-        self.output = var.Distribution(resolutions=resolutions, order=order)
+        self.flux = var.Distribution(resolutions=resolutions, order=order, charge_mass=None)
+        self.output = var.Distribution(resolutions=resolutions, order=order, charge_mass=None)
+
+        # species dependence
+        self.charge = charge_mass
 
     def semi_discrete_rhs(self, distribution, elliptic, grid):
         """ Computes the semi-discrete equation """
-        # Do elliptic problem
-        elliptic.poisson_solve(distribution=distribution, grid=grid, invert=False)
         # Compute the flux
         self.compute_flux(distribution=distribution, elliptic=elliptic, grid=grid)
         self.output.arr = (grid.v.J * self.v_flux_lgl(grid=grid) +
@@ -38,23 +43,32 @@ class DGFlux:
         #     self.output.arr = (grid.v.J * self.v_flux_lgl(grid=grid))
         # self.output.arr = self.source_term(distribution=distribution, grid=grid)
 
+    def initialize_zero_pad(self, grid):
+        self.pad_field = cp.zeros((grid.x.modes + grid.x.pad_width)) + 0j
+        self.pad_spectrum = cp.zeros((grid.x.modes + grid.x.pad_width,
+                                      self.v_res, self.order)) + 0j
+
     def compute_flux(self, distribution, elliptic, grid):
         """ Compute the flux convolution(field, distribution) using pseudospectral method """
-        # Zero-pad spectrum
-        padded_field_spectrum = cp.pad(elliptic.field.arr_spectral, grid.x.pad_width)
-        padded_dist_spectrum = cp.pad(distribution.arr, grid.x.pad_width)[:, grid.x.pad_width:-grid.x.pad_width,
-                                                                             grid.x.pad_width:-grid.x.pad_width]
+        # Zero-pad
+        self.pad_field[:-grid.x.pad_width] = elliptic.field.arr_spectral
+        self.pad_spectrum[:-grid.x.pad_width, :, :] = distribution.arr
         # Pseudospectral product
-        field_nodal = cp.real(cp.fft.ifft(cp.fft.fftshift(padded_field_spectrum, axes=0), norm='forward', axis=0))
-        distr_nodal = cp.real(cp.fft.ifft(cp.fft.fftshift(padded_dist_spectrum, axes=0), norm='forward', axis=0))
-        nodal_flux = cp.multiply(field_nodal[:, None, None], distr_nodal)
-        self.flux.arr = cp.fft.fftshift(cp.fft.fft(
-            nodal_flux, axis=0, norm='forward'), axes=0
-        )[grid.x.pad_width:-grid.x.pad_width, :, :]
+        # field_nodal = cp.real(cp.fft.ifft(cp.fft.fftshift(padded_field_spectrum, axes=0), norm='forward', axis=0))
+        # distr_nodal = cp.real(cp.fft.ifft(cp.fft.fftshift(padded_dist_spectrum, axes=0), norm='forward', axis=0))
+        field_nodal = cp.fft.irfft(self.pad_field, norm='forward')
+        distr_nodal = cp.fft.irfft(self.pad_spectrum, norm='forward', axis=0)
+        nodal_flux = self.charge * cp.multiply(field_nodal[:, None, None], distr_nodal)
+
+        # Transform back
+        # self.flux.arr = cp.fft.fftshift(cp.fft.fft(
+        #     nodal_flux, axis=0, norm='forward'), axes=0
+        # )[grid.x.pad_width:-grid.x.pad_width, :, :]
+        self.flux.arr = cp.fft.rfft(nodal_flux, norm='forward', axis=0)[:-grid.x.pad_width, :, :]
 
     def v_flux_lgl(self, grid):
-        return -1.0 * (basis_product(flux=self.flux.arr, basis_arr=grid.v.local_basis.internal, axis=2) -
-                       self.numerical_flux_lgl(grid=grid))
+        return (basis_product(flux=self.flux.arr, basis_arr=grid.v.local_basis.internal, axis=2) -
+                self.numerical_flux_lgl(grid=grid))
 
     def numerical_flux_lgl(self, grid):
         # Allocate
