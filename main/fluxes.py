@@ -36,7 +36,7 @@ class DGFlux:
         """ Computes the semi-discrete equation """
         # Compute the flux
         self.compute_flux(distribution=distribution, elliptic=elliptic, grid=grid)
-        self.output.arr = (grid.v.J * self.v_flux_lgl(grid=grid) +
+        self.output.arr = (grid.v.J * self.v_flux_lgl(grid=grid, distribution=distribution) +
                            self.source_term_lgl(distribution=distribution, grid=grid))
         # return self.output.arr
         # if not gl:
@@ -66,11 +66,11 @@ class DGFlux:
         # )[grid.x.pad_width:-grid.x.pad_width, :, :]
         self.flux.arr = cp.fft.rfft(nodal_flux, norm='forward', axis=0)[:-grid.x.pad_width, :, :]
 
-    def v_flux_lgl(self, grid):
+    def v_flux_lgl(self, grid, distribution):
         return (basis_product(flux=self.flux.arr, basis_arr=grid.v.local_basis.internal, axis=2) -
-                self.numerical_flux_lgl(grid=grid))
+                self.numerical_flux_lgl(grid=grid, distribution=distribution))
 
-    def numerical_flux_lgl(self, grid):
+    def numerical_flux_lgl(self, distribution, grid):
         # Allocate
         num_flux = cp.zeros(self.num_flux_size) + 0j
 
@@ -87,6 +87,21 @@ class DGFlux:
         num_flux[self.boundary_slices[1]] = (cp.roll(padded_flux[self.boundary_slices_pad[0]],
                                                      shift=-1, axis=1)[:, 1:-1] +
                                              self.flux.arr[self.boundary_slices[1]]) / 2.0
+
+        # re-use padded_flux array for padded_distribution
+        padded_flux[:, 1:-1, :] = distribution.arr
+        constant = cp.amax(cp.absolute(self.flux.arr))
+        # print(constant)
+
+        # Lax-Friedrichs flux
+        num_flux[self.boundary_slices[0]] += -1.0 * cp.multiply(constant,
+                                                         (cp.roll(padded_flux[self.boundary_slices_pad[1]],
+                                                            shift=+1, axis=1)[:, 1:-1] -
+                                                          distribution.arr[self.boundary_slices[0]]) / 2.0)
+        num_flux[self.boundary_slices[1]] += -1.0 * cp.multiply(constant,
+                                                         (cp.roll(padded_flux[self.boundary_slices_pad[0]],
+                                                            shift=-1, axis=1)[:, 1:-1] -
+                                                          distribution.arr[self.boundary_slices[1]]) / 2.0)
 
         return basis_product(flux=num_flux, basis_arr=grid.v.local_basis.numerical, axis=2)
 

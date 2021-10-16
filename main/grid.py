@@ -1,6 +1,7 @@
 import numpy as np
 import cupy as cp
 import basis as b
+import tools.plasma_dispersion as pd
 
 
 class SpaceGrid:
@@ -91,11 +92,11 @@ class VelocityGrid:
                             axes=([0, 1], idx)) / self.J
 
     def compute_maxwellian(self, thermal_velocity, drift_velocity):
-        return cp.exp(-((self.device_arr - drift_velocity) /
-                        thermal_velocity) ** 2.0) / (np.sqrt(np.pi) * thermal_velocity)
+        return cp.exp(-0.5 * ((self.device_arr - drift_velocity) /
+                        thermal_velocity) ** 2.0) / (np.sqrt(2.0 * np.pi) * thermal_velocity)
 
     def compute_maxwellian_gradient(self, thermal_velocity, drift_velocity):
-        return (-2.0 * ((self.device_arr - drift_velocity) / thermal_velocity ** 2.0) *
+        return (-1.0*((self.device_arr - drift_velocity) / thermal_velocity ** 2.0) *
                 self.compute_maxwellian(thermal_velocity=thermal_velocity, drift_velocity=drift_velocity))
 
 
@@ -112,7 +113,11 @@ class PhaseSpace:
         if beams == 'one':
             df = self.v.compute_maxwellian_gradient(thermal_velocity=thermal_velocity,
                                                     drift_velocity=drift_velocity)
-            v_part = -1 * df / (eigenvalue - self.x.fundamental * self.v.device_arr)
+            # v_part = -1j * df / (eigenvalue - self.x.fundamental * self.v.device_arr)
+            z = eigenvalue / (0.5 * np.sqrt(2))
+            eps = 0  # 1.0 - 0.5 * pd.Zprime(z) / (self.x.fundamental ** 2.0)
+            eps_prime = -0.5 * pd.Zdoubleprime(z) / (self.x.fundamental ** 3.0)
+            v_part = df / (eps + (eigenvalue - self.x.fundamental * self.v.device_arr) * eps_prime)
             return cp.tensordot(cp.exp(1j * self.x.fundamental * self.x.device_arr), v_part, axes=0)
 
         if beams == 'two-stream':

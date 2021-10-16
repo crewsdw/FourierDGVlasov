@@ -60,12 +60,10 @@ class Distribution:
     def spectral_flatten(self):
         return self.arr.reshape(self.arr.shape[0], self.v_res * self.order)
 
-    def initialize(self, grid, vt, perturbation=True):
+    def initialize(self, grid, vt, drift, perturbation=True):
         ix, iv = cp.ones_like(grid.x.device_arr), cp.ones_like(grid.v.device_arr)
-        maxwellian = 0.5 * (cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=vt,
-                                                                       drift_velocity=0.0), axes=0) +
-                            cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=vt,
-                                                                       drift_velocity=0.0), axes=0))
+        maxwellian = cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=vt,
+                                                                drift_velocity=drift), axes=0)
 
         # compute perturbation
         # perturbation = cp.imag(grid.eigenfunction(thermal_velocity=1,
@@ -81,17 +79,23 @@ class Distribution:
         if perturbation:
             # perturbation = np.multiply(np.sin(grid.x.fundamental * grid.x.device_arr)[:, None, None], maxwellian)
             perturbation = self.charge_mass * cp.real(grid.eigenfunction(thermal_velocity=vt,
-                                                                         drift_velocity=0,
+                                                                         drift_velocity=drift,
                                                                          beams='one',
-                                                                         eigenvalue=0.47937843 - 0.30636386j))
-            # 0.33897174 - 0.21663196j))
+                                                                         # eigenvalue=+1.41575189 - 0.15329189j))
+                                                                         eigenvalue=0.3403289 + 0.12783108j))
+                                                                         # 1.43268952 - 0.1410875j))
+                                                                         #  eigenvalue=0.17483063 - 0.0238957j))
+            # perturbation += self.charge_mass * cp.real(grid.eigenfunction(thermal_velocity=vt,
+            #                                                              drift_velocity=drift,
+            #                                                              beams='one',
+            #                                                              eigenvalue=-1.41575189 - 0.15329189j))
         else:
             perturbation = 0
         # grid.v.compute_maxwellian(thermal_velocity=1.0,
         #                           drift_velocity=0.0),
         # axes=0)
         # self.arr_nodal = maxwellian + 1.0e-7 * perturbation
-        self.arr_nodal = maxwellian + 1.0e-2 * perturbation
+        self.arr_nodal = maxwellian + 1.0e-1 * perturbation
 
     def fourier_transform(self):
         # self.arr = cp.fft.fftshift(cp.fft.fft(self.arr_nodal, axis=0, norm='forward'), axes=0)

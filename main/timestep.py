@@ -40,8 +40,11 @@ class Stepper:
         self.thermal_energy_p = np.array([])
         self.density_array_e = np.array([])
         self.density_array_p = np.array([])
+        num = int(self.steps // 20 + 1)
+        # self.saved_density = np.zeros((num, self.x_res))
 
-    def main_loop(self, distribution_e, distribution_p, elliptic, grids):  # , plotter, plot=True):
+    def main_loop_ssprk3(self, distribution_e, distribution_p, elliptic, grids):  # , plotter, plot=True):
+        # just SSP-RK3
         print('Beginning main loop')
         for i in range(self.steps):
             self.next_time = self.time + self.step
@@ -60,6 +63,56 @@ class Stepper:
                                                  distribution_e.total_density(grid=grids[0]))
                 self.density_array_p = np.append(self.density_array_p,
                                                  distribution_p.total_density(grid=grids[1]))
+
+                print('Took step, time is {:0.3e}'.format(self.time))
+
+        return distribution_e, distribution_p
+
+    def main_loop_adams_bashforth(self, distribution_e, distribution_p, elliptic, grids):  # , plotter, plot=True):
+        # using adams-bashforth method
+        print('Beginning main loop')
+
+        # Compute first two steps with ssp-rk3 and save fluxes
+        # zeroth step
+        elliptic.poisson_solve(distribution_e=distribution_e, distribution_p=distribution_p, grids=grids)
+        self.flux_e.semi_discrete_rhs(distribution=distribution_e, elliptic=elliptic, grid=grids[0])
+        self.flux_p.semi_discrete_rhs(distribution=distribution_p, elliptic=elliptic, grid=grids[1])
+        flux0e, flux0p = self.flux_e.output.arr, self.flux_p.output.arr
+
+        # first step
+        self.ssp_rk3(distribution_e=distribution_e, distribution_p=distribution_p, elliptic=elliptic, grids=grids)
+        self.time += self.dt
+        # save fluxes
+        elliptic.poisson_solve(distribution_e=distribution_e, distribution_p=distribution_p, grids=grids)
+        self.flux_e.semi_discrete_rhs(distribution=distribution_e, elliptic=elliptic, grid=grids[0])
+        self.flux_p.semi_discrete_rhs(distribution=distribution_p, elliptic=elliptic, grid=grids[1])
+        flux1e, flux1p = self.flux_e.output.arr, self.flux_p.output.arr
+
+        # store first two fluxes
+        previous_fluxes = [[flux1e, flux0e], [flux1p, flux0p]]
+        # self.saved_density[0, :] = distribution_e.zero_moment.arr_nodal.get()
+        # Begin loop
+        for i in range(1, self.steps):
+            previous_fluxes = self.adams_bashforth(distribution_e=distribution_e, distribution_p=distribution_p,
+                                                   elliptic=elliptic, grids=grids, prev_fluxes=previous_fluxes)
+            self.time += self.step
+
+            if i % 20 == 0:
+                self.time_array = np.append(self.time_array, self.time)
+                elliptic.poisson_solve(distribution_e=distribution_e, distribution_p=distribution_p, grids=grids)
+                self.field_energy = np.append(self.field_energy, elliptic.compute_field_energy(grid=grids[0]))
+                self.thermal_energy_e = np.append(self.thermal_energy_e,
+                                                  distribution_e.total_thermal_energy(grid=grids[0]))
+                self.thermal_energy_p = np.append(self.thermal_energy_p,
+                                                  self.mass_ratio * distribution_p.total_thermal_energy(grid=grids[1]))
+                self.density_array_e = np.append(self.density_array_e,
+                                                 distribution_e.total_density(grid=grids[0]))
+                self.density_array_p = np.append(self.density_array_p,
+                                                 distribution_p.total_density(grid=grids[1]))
+                # self.saved_density[i // 20, :] = distribution_e.zero_moment.arr_nodal.get()
+
+                # print(self.saved_density.shape)
+                # quit()
                 print('Took step, time is {:0.3e}'.format(self.time))
 
         return distribution_e, distribution_p
@@ -110,6 +163,23 @@ class Stepper:
                 self.rk_coefficients[1, 1] * stage1_p.arr +
                 self.rk_coefficients[1, 2] * self.dt * self.flux_p.output.arr
         )
+
+    def adams_bashforth(self, distribution_e, distribution_p, elliptic, grids, prev_fluxes):
+        # Compute flux at this point
+        elliptic.poisson_solve(distribution_e=distribution_e, distribution_p=distribution_p, grids=grids)
+        self.flux_e.semi_discrete_rhs(distribution=distribution_e, elliptic=elliptic, grid=grids[0])
+        self.flux_p.semi_discrete_rhs(distribution=distribution_p, elliptic=elliptic, grid=grids[1])
+
+        # Update distribution
+        distribution_e.arr += self.dt * (23 / 12 * self.flux_e.output.arr -
+                                         4 / 3 * prev_fluxes[0][0] +
+                                         5 / 12 * prev_fluxes[0][1])
+        distribution_p.arr += self.dt * (23 / 12 * self.flux_p.output.arr -
+                                         4 / 3 * prev_fluxes[1][0] +
+                                         5 / 12 * prev_fluxes[1][1])
+        # update previous_fluxes
+        return [[self.flux_e.output.arr, prev_fluxes[0][0]],
+                [self.flux_p.output.arr, prev_fluxes[1][0]]]
 
 #
 # def ode_system(self, t, y, distribution, elliptic, grid):
