@@ -78,13 +78,21 @@ class Distribution:
         #                                           eigenvalue=-3.0j)) / 2.0  # -1.68 - 0.4j
         if perturbation:
             # perturbation = np.multiply(np.sin(grid.x.fundamental * grid.x.device_arr)[:, None, None], maxwellian)
+            # eigenvalue1 = 1.00102412 - 0.10844152j
+            # eigenvalue2 = -1.00102412 - 0.10844152j
+            # eigenvalue1 = 1.4156618886045371 - 0.1533594669096048j
+            # eigenvalue1 = 1.0151975255440933 - 0j
+            eigenvalue1 = 2.0459048656906247 - 0.8513304586920563j
+            # eigenvalue2 = -1.41566189 - 0.15335947j
             perturbation = self.charge_mass * cp.real(grid.eigenfunction(thermal_velocity=vt,
                                                                          drift_velocity=drift,
                                                                          beams='one',
-                                                                         # eigenvalue=+1.41575189 - 0.15329189j))
-                                                                         eigenvalue=0.3403289 + 0.12783108j))
-                                                                         # 1.43268952 - 0.1410875j))
-                                                                         #  eigenvalue=0.17483063 - 0.0238957j))
+                                                                         eigenvalue=eigenvalue1))
+            # perturbation += self.charge_mass * cp.real(grid.eigenfunction(thermal_velocity=vt,
+            #                                                              drift_velocity=drift,
+            #                                                              beams='one',
+            #                                                              eigenvalue=eigenvalue2))
+
             # perturbation += self.charge_mass * cp.real(grid.eigenfunction(thermal_velocity=vt,
             #                                                              drift_velocity=drift,
             #                                                              beams='one',
@@ -95,7 +103,7 @@ class Distribution:
         #                           drift_velocity=0.0),
         # axes=0)
         # self.arr_nodal = maxwellian + 1.0e-7 * perturbation
-        self.arr_nodal = maxwellian + 1.0e-1 * perturbation
+        self.arr_nodal = maxwellian + 1.0e-3 * perturbation
 
     def fourier_transform(self):
         # self.arr = cp.fft.fftshift(cp.fft.fft(self.arr_nodal, axis=0, norm='forward'), axes=0)

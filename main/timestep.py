@@ -23,7 +23,7 @@ class Stepper:
         self.steps = steps
         self.flux_e = fx.DGFlux(resolutions=resolutions, order=order, charge_mass=-1.0)
         self.flux_e.initialize_zero_pad(grid=grids[0])
-        self.flux_p = fx.DGFlux(resolutions=resolutions, order=order, charge_mass=+1.0/charge_mass)
+        self.flux_p = fx.DGFlux(resolutions=resolutions, order=order, charge_mass=0)  # +1.0/charge_mass)
         self.flux_p.initialize_zero_pad(grid=grids[1])
 
         self.mass_ratio = charge_mass

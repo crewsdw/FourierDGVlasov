@@ -9,16 +9,16 @@ import timestep as ts
 from copy import deepcopy
 
 # elements and order
-elements, order = [128, 100], 8
+elements, order = [32, 100], 8
 mass_ratio = 1836  # m_p / m_e
 temp_ratio = 1  # T_e / T_p
 vt_e = 1
 vt_p = vt_e / np.sqrt(mass_ratio * temp_ratio)
 
 # set up grids
-wave_number = 0.5
+wave_number = 1  # 0.1
 length = 2.0 * np.pi / wave_number
-lows_e = np.array([-0.5 * length, -8 * vt_e])
+lows_e = np.array([-0.5 * length, -10 * vt_e])
 highs_e = np.array([0.5 * length, 10 * vt_e])
 grid_e = g.PhaseSpace(lows=lows_e, highs=highs_e, elements=elements, order=order)
 
@@ -33,11 +33,11 @@ grids = [grid_e, grid_p]
 
 # build distribution
 distribution_e = var.Distribution(resolutions=elements, order=order, charge_mass=-1.0)
-distribution_e.initialize(grid=grid_e, vt=vt_e, drift=3)  # 3
+distribution_e.initialize(grid=grid_e, vt=vt_e, drift=0)  # 3
 distribution_e.fourier_transform(), distribution_e.inverse_fourier_transform()
 
 distribution_p = var.Distribution(resolutions=elements, order=order, charge_mass=+1.0 / mass_ratio)
-distribution_p.initialize(grid=grid_p, vt=vt_p, drift=0)
+distribution_p.initialize(grid=grid_p, vt=vt_p, drift=0, perturbation=False)
 distribution_p.fourier_transform(), distribution_p.inverse_fourier_transform()
 
 # test elliptic solver
@@ -60,7 +60,7 @@ t0 = timer.time()
 time = 0
 dt = 1.0e-3
 step = 1.0e-3
-final_time = 5.0  # 22.5
+final_time = 20.0  # 22.5
 steps = int(final_time // step)
 dt_max = 1.0 / (np.amax(grid_e.x.wavenumbers) * np.amax(grid_e.v.arr))
 print('Max dt is {:0.3e}'.format(dt_max))
@@ -68,6 +68,9 @@ print('Max dt is {:0.3e}'.format(dt_max))
 
 stepper = ts.Stepper(dt=dt, step=step, resolutions=elements, order=order,
                      steps=steps, grids=grids, charge_mass=mass_ratio)
+# distribution_e_f, distribution_p_f = stepper.main_loop_ssprk3(distribution_e=distribution_e,
+#                                                               distribution_p=distribution_p,
+#                                                               elliptic=elliptic, grids=grids)
 distribution_e_f, distribution_p_f = stepper.main_loop_adams_bashforth(distribution_e=distribution_e,
                                                                        distribution_p=distribution_p,
                                                                        elliptic=elliptic, grids=grids)
@@ -80,7 +83,7 @@ elliptic.field.inverse_fourier_transform()
 
 # plotter = my_plt.Plotter(grid=grid)
 plotter_e.distribution_contourf(distribution=distribution_e, remove_average=True)
-plotter_p.distribution_contourf(distribution=distribution_p, remove_average=True)
+# plotter_p.distribution_contourf(distribution=distribution_p, remove_average=True)
 
 plotter_e.spatial_scalar_plot(scalar=distribution_e.zero_moment, y_axis='Zero moment electron')
 plotter_p.spatial_scalar_plot(scalar=distribution_p.zero_moment, y_axis='Zero moment proton')

@@ -66,6 +66,12 @@ class DGFlux:
         # )[grid.x.pad_width:-grid.x.pad_width, :, :]
         self.flux.arr = cp.fft.rfft(nodal_flux, norm='forward', axis=0)[:-grid.x.pad_width, :, :]
 
+        # No zero-pad
+        # elliptic.field.inverse_fourier_transform()
+        # distribution.inverse_fourier_transform()
+        # nodal_flux = self.charge * cp.multiply(elliptic.field.arr_nodal[:, None, None], distribution.arr_nodal)
+        # self.flux.arr = cp.fft.rfft(nodal_flux, norm='forward', axis=0)
+
     def v_flux_lgl(self, grid, distribution):
         return (basis_product(flux=self.flux.arr, basis_arr=grid.v.local_basis.internal, axis=2) -
                 self.numerical_flux_lgl(grid=grid, distribution=distribution))

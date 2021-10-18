@@ -34,6 +34,8 @@ class SpaceGrid:
         self.pad_width = int((1 * self.modes)//3 + 1)
         # print(self.two_thirds_low)
         # print(self.two_thirds_high)
+        print(self.length)
+        print(self.fundamental)
 
     def create_grid(self):
         """ Build evenly spaced grid, assumed periodic """
@@ -113,12 +115,15 @@ class PhaseSpace:
         if beams == 'one':
             df = self.v.compute_maxwellian_gradient(thermal_velocity=thermal_velocity,
                                                     drift_velocity=drift_velocity)
-            # v_part = -1j * df / (eigenvalue - self.x.fundamental * self.v.device_arr)
-            z = eigenvalue / (0.5 * np.sqrt(2))
-            eps = 0  # 1.0 - 0.5 * pd.Zprime(z) / (self.x.fundamental ** 2.0)
-            eps_prime = -0.5 * pd.Zdoubleprime(z) / (self.x.fundamental ** 3.0)
-            v_part = df / (eps + (eigenvalue - self.x.fundamental * self.v.device_arr) * eps_prime)
+            zeta = eigenvalue / self.x.fundamental
+            # v_part = df / (eigenvalue - self.x.fundamental * self.v.device_arr) / self.x.fundamental
+            v_part = df / (zeta - self.v.device_arr) / (self.x.fundamental ** 2.0)
+            # z = eigenvalue / (0.5 * np.sqrt(2))
+            # eps = 0  # 1.0 - 0.5 * pd.Zprime(z) / (self.x.fundamental ** 2.0)
+            # eps_prime = -0.5 * pd.Zdoubleprime(z) / (self.x.fundamental ** 3.0)
+            # v_part = df / (eps + (eigenvalue - self.x.fundamental * self.v.device_arr) * eps_prime)
             return cp.tensordot(cp.exp(1j * self.x.fundamental * self.x.device_arr), v_part, axes=0)
+            # return cp.tensordot(cp.ones_like(self.x.device_arr), v_part, axes=0)
 
         if beams == 'two-stream':
             df1 = self.v.compute_maxwellian_gradient(thermal_velocity=thermal_velocity,
