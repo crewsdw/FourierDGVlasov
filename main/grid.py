@@ -116,13 +116,21 @@ class PhaseSpace:
             df = self.v.compute_maxwellian_gradient(thermal_velocity=thermal_velocity,
                                                     drift_velocity=drift_velocity)
             zeta = eigenvalue / self.x.fundamental
+            denom = zeta - self.v.device_arr
+            denom_abs = np.absolute(denom)
+            denom_ang = np.angle(denom)
+            # denom = np.absolute(zeta - self.v.device_arr)
             # v_part = df / (eigenvalue - self.x.fundamental * self.v.device_arr) / self.x.fundamental
-            v_part = df / (zeta - self.v.device_arr) / (self.x.fundamental ** 2.0)
+            v_part = df / denom_abs / (self.x.fundamental ** 2.0)  # * np.exp(-1j * denom_ang)
+            xv_part = cp.cos(self.x.fundamental * self.x.device_arr[:, None, None] - denom_ang[None, :, :])
+            return xv_part * v_part[None, :, :]
+            # v_part = df / (zeta - self.v.device_arr) / (self.x.fundamental ** 2.0)
             # z = eigenvalue / (0.5 * np.sqrt(2))
             # eps = 0  # 1.0 - 0.5 * pd.Zprime(z) / (self.x.fundamental ** 2.0)
             # eps_prime = -0.5 * pd.Zdoubleprime(z) / (self.x.fundamental ** 3.0)
             # v_part = df / (eps + (eigenvalue - self.x.fundamental * self.v.device_arr) * eps_prime)
-            return cp.tensordot(cp.exp(1j * self.x.fundamental * self.x.device_arr), v_part, axes=0)
+            # return cp.tensordot(cp.cos(self.x.fundamental * self.x.device_arr), v_part, axes=0)
+            # return cp.tensordot(cp.exp(1j * self.x.fundamental * self.x.device_arr), v_part, axes=0)
             # return cp.tensordot(cp.ones_like(self.x.device_arr), v_part, axes=0)
 
         if beams == 'two-stream':
@@ -132,4 +140,4 @@ class PhaseSpace:
                                                      drift_velocity=drift_velocity[1])
             df = 0.5 * (df1 + df2)
             v_part = cp.divide(df, self.v.device_arr - eigenvalue)
-            return cp.tensordot(cp.exp(1j * self.x.fundamental * self.x.device_arr), v_part, axes=0)
+            return cp.tensordot(cp.exp(1j * self.x.fundamental * self.x.device_arr), v_part, axes=0) * cp.exp(0.1j)

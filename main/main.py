@@ -16,14 +16,16 @@ vt_e = 1
 vt_p = vt_e / np.sqrt(mass_ratio * temp_ratio)
 
 # set up grids
-wave_number = 1  # 0.1
+wave_number = 0.5  # 0.05  # 0.1
 length = 2.0 * np.pi / wave_number
-lows_e = np.array([-0.5 * length, -10 * vt_e])
-highs_e = np.array([0.5 * length, 10 * vt_e])
+# lows_e = np.array([-0.5 * length, -10 * vt_e])
+# highs_e = np.array([0.5 * length, 10 * vt_e])
+lows_e = np.array([0, -12 * vt_e])
+highs_e = np.array([length, 12 * vt_e])
 grid_e = g.PhaseSpace(lows=lows_e, highs=highs_e, elements=elements, order=order)
 
-lows_p = np.array([-0.5 * length, -30 * vt_p])
-highs_p = np.array([0.5 * length, 30 * vt_p])
+lows_p = np.array([0, -30 * vt_p])
+highs_p = np.array([length, 30 * vt_p])
 grid_p = g.PhaseSpace(lows=lows_p, highs=highs_p, elements=elements, order=order)
 
 print(grid_e.v.dx)
@@ -45,8 +47,8 @@ elliptic = ell.Elliptic(resolution=elements[0])
 elliptic.poisson_solve(distribution_e=distribution_e, distribution_p=distribution_p, grids=grids)
 
 plotter_e = my_plt.Plotter(grid=grid_e)
-plotter_e.distribution_contourf(distribution=distribution_e, plot_spectrum=True)
-# plotter_e.spatial_scalar_plot(scalar=distribution_e.zero_moment, y_axis='Zero moment electrons')
+plotter_e.distribution_contourf(distribution=distribution_e, plot_spectrum=True)  # , remove_average=True)
+plotter_e.spatial_scalar_plot(scalar=distribution_e.zero_moment, y_axis='Zero moment electrons')
 # plotter_e.spatial_scalar_plot(scalar=elliptic.field, y_axis='Electric Field')
 plotter_e.show()
 
@@ -60,8 +62,8 @@ t0 = timer.time()
 time = 0
 dt = 1.0e-3
 step = 1.0e-3
-final_time = 20.0  # 22.5
-steps = int(final_time // step)
+final_time = 10.0  # 22.5
+steps = int(np.abs(final_time // step))
 dt_max = 1.0 / (np.amax(grid_e.x.wavenumbers) * np.amax(grid_e.v.arr))
 print('Max dt is {:0.3e}'.format(dt_max))
 # plotter.spatial_scalar_plot(scalar=elliptic.field, y_axis='Electric Field', spectrum=True)

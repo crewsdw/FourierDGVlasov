@@ -80,18 +80,20 @@ class Distribution:
             # perturbation = np.multiply(np.sin(grid.x.fundamental * grid.x.device_arr)[:, None, None], maxwellian)
             # eigenvalue1 = 1.00102412 - 0.10844152j
             # eigenvalue2 = -1.00102412 - 0.10844152j
-            # eigenvalue1 = 1.4156618886045371 - 0.1533594669096048j
+            # eigenvalue1 = 1.4156618886045 - 0.1533594669096j
+            eigenvalue1 = 1.78957059-1.14414301j
             # eigenvalue1 = 1.0151975255440933 - 0j
-            eigenvalue1 = 2.0459048656906247 - 0.8513304586920563j
+            # eigenvalue1 = 1.0037618652948530  # 2.0459048656906247 - 0.8513304586920563j
             # eigenvalue2 = -1.41566189 - 0.15335947j
+            eigenvalue2 = -1.78957059 - 1.14414301j
             perturbation = self.charge_mass * cp.real(grid.eigenfunction(thermal_velocity=vt,
+                                                                 drift_velocity=drift,
+                                                                 beams='one',
+                                                                 eigenvalue=eigenvalue1))
+            perturbation += self.charge_mass * cp.real(grid.eigenfunction(thermal_velocity=vt,
                                                                          drift_velocity=drift,
                                                                          beams='one',
-                                                                         eigenvalue=eigenvalue1))
-            # perturbation += self.charge_mass * cp.real(grid.eigenfunction(thermal_velocity=vt,
-            #                                                              drift_velocity=drift,
-            #                                                              beams='one',
-            #                                                              eigenvalue=eigenvalue2))
+                                                                         eigenvalue=eigenvalue2))
 
             # perturbation += self.charge_mass * cp.real(grid.eigenfunction(thermal_velocity=vt,
             #                                                              drift_velocity=drift,
@@ -103,7 +105,7 @@ class Distribution:
         #                           drift_velocity=0.0),
         # axes=0)
         # self.arr_nodal = maxwellian + 1.0e-7 * perturbation
-        self.arr_nodal = maxwellian + 1.0e-3 * perturbation
+        self.arr_nodal = maxwellian + 1.0e-4 * perturbation
 
     def fourier_transform(self):
         # self.arr = cp.fft.fftshift(cp.fft.fft(self.arr_nodal, axis=0, norm='forward'), axes=0)

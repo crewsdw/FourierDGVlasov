@@ -97,7 +97,6 @@ class DGFlux:
         # re-use padded_flux array for padded_distribution
         padded_flux[:, 1:-1, :] = distribution.arr
         constant = cp.amax(cp.absolute(self.flux.arr))
-        # print(constant)
 
         # Lax-Friedrichs flux
         num_flux[self.boundary_slices[0]] += -1.0 * cp.multiply(constant,
