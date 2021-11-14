@@ -8,7 +8,19 @@ class Elliptic:
         self.potential = var.SpaceScalar(resolution=resolution)
         self.field = var.SpaceScalar(resolution=resolution)
 
-    def poisson_solve(self, distribution_e, distribution_p, grids, invert=True):
+    def poisson_solve_single_species(self, distribution, grid, invert=True):
+        # Compute zeroth moment, integrate(c_n(v)dv)
+        distribution.compute_zero_moment(grid=grid)
+
+        # Compute field spectrum
+        self.field.arr_spectral = 1j * cp.nan_to_num(cp.divide(distribution.zero_moment.arr_spectral,
+                                                            grid.x.device_wavenumbers))
+        self.field.arr_spectral[grid.x.zero_idx] = 0 + 0j
+
+        if invert:
+            self.field.inverse_fourier_transform()
+
+    def poisson_solve_two_species(self, distribution_e, distribution_p, grids, invert=True):
         # Compute zeroth moment, integrate(c_n(v)dv)
         distribution_e.compute_zero_moment(grid=grids[0])
         distribution_p.compute_zero_moment(grid=grids[1])

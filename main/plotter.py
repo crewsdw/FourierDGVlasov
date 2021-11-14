@@ -37,13 +37,13 @@ class Plotter:
             spectrum_to_plot = distribution.spectral_flatten()
             spectrum_to_plot[self.grid.x.zero_idx, :] = 0.0
             spectrum = np.log(1.0 + np.absolute(spectrum_to_plot.get()))
-            cb_s = np.linspace(np.amin(spectrum), 0.05 * np.amax(spectrum), num=100)
+            cb_s = np.linspace(np.amin(spectrum), 0.5 * np.amax(spectrum), num=100)
 
             plt.figure()
             plt.contourf(self.FX, self.FV, spectrum, cb_s, extend='both')  # , cmap=self.colormap)
             plt.xlabel('mode'), plt.ylabel('v'), plt.colorbar(), plt.tight_layout()
 
-    def spatial_scalar_plot(self, scalar, y_axis, spectrum=True):
+    def spatial_scalar_plot(self, scalar, y_axis, spectrum=True, quadratic=False):
         if scalar.arr_nodal is None:
             scalar.inverse_fourier_transform()
 
@@ -54,11 +54,15 @@ class Plotter:
 
         if spectrum:
             plt.figure()
-            spectrum = scalar.arr_spectral.flatten().get()
-            plt.plot(self.k.flatten(), np.real(spectrum), 'ro', label='real')
-            plt.plot(self.k.flatten(), np.imag(spectrum), 'go', label='imaginary')
+            spectral_arr = scalar.arr_spectral.flatten().get()
+            if not quadratic:
+                plt.plot(self.k.flatten(), np.real(spectral_arr), 'ro', label='real')
+                plt.plot(self.k.flatten(), np.imag(spectral_arr), 'go', label='imaginary')
+                plt.legend(loc='best')
+            if quadratic:
+                plt.plot(self.k.flatten(), np.absolute(spectral_arr)**2.0, 'o')
             plt.xlabel('Modes'), plt.ylabel(y_axis + ' spectrum')
-            plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+            plt.grid(True), plt.tight_layout()
 
     def time_series_plot(self, time_in, series_in, y_axis, log=False, give_rate=False):
         time, series = time_in, series_in.get() / self.length

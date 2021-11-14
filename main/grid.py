@@ -27,6 +27,8 @@ class SpaceGrid:
         self.fundamental = 2.0 * np.pi / self.length
         # self.wavenumbers = self.fundamental * np.arange(-self.modes, self.modes)
         self.wavenumbers = self.fundamental * np.arange(self.modes)
+        # print(self.wavenumbers)
+        self.device_modes = cp.arange(self.modes)
         self.device_wavenumbers = cp.array(self.wavenumbers)
         self.zero_idx = 0  # int(self.modes)
         # self.two_thirds_low = int((1 * self.modes)//3 + 1)

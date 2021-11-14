@@ -5,7 +5,43 @@ import scipy.optimize as opt
 import tools.plasma_dispersion as pd
 
 
-def dispersion_function(k, z, mass_ratio, temperature_ratio, electron_drift):
+def dispersion_function(k, z, drift_one, vt_one, two_scale, drift_two, vt_two):
+    """
+    Computes two-species plasma dispersion function epsilon(zeta, k) = 0
+    """
+    sq2 = 2 ** 0.5
+    k2 = k / sq2
+    k_sq = k ** 2.0
+    z_e_one = (z - drift_one) / vt_one / sq2
+    z_e_two = (z - drift_two) / vt_two / sq2
+    return 1 - 0.5 * (pd.Zprime(z_e_one) +
+                      two_scale * pd.Zprime(z_e_two) * (vt_one / vt_two) ** 2) / k_sq / (1 + two_scale)  #
+
+
+def analytic_jacobian(k, z, drift_one, vt_one, two_scale, drift_two, vt_two):
+    sq2 = 2 ** 0.5
+    k2 = k / sq2
+    k_sq = k ** 2.0
+    z_e_one = (z - drift_one) / vt_one / sq2
+    z_e_two = (z - drift_two) / vt_two / sq2
+    return -0.5 * (pd.Zdoubleprime(z_e_one) / vt_one +
+                   two_scale * pd.Zdoubleprime(z_e_two) / vt_two) / k_sq / (1 + two_scale)
+
+
+def dispersion_fsolve(z, k, drift_one, vt_one, two_scale, drift_two, vt_two):
+    freq = z[0] + 1j * z[1]
+    d = dispersion_function(k, freq, drift_one, vt_one, two_scale, drift_two, vt_two)
+    return [np.real(d), np.imag(d)]
+
+
+def jacobian_fsolve(z, k, drift_one, vt_one, two_scale, drift_two, vt_two):
+    freq = z[0] + 1j * z[1]
+    jac = analytic_jacobian(k, freq, drift_one, vt_one, two_scale, drift_two, vt_two)
+    jr, ji = np.real(jac), np.imag(jac)
+    return [[jr, -ji], [ji, jr]]
+
+
+def dispersion_function_two_species(k, z, mass_ratio, temperature_ratio, electron_drift):
     """
     Computes two-species plasma dispersion function epsilon(zeta, k) = 0
     """
@@ -13,167 +49,157 @@ def dispersion_function(k, z, mass_ratio, temperature_ratio, electron_drift):
     k_sq = k ** 2.0
     z_e = z - electron_drift / np.sqrt(2)
     z_p = thermal_velocity_ratio * z
-    # return 1.0 - 0.5 * (pd.Zprime(z_e) + temperature_ratio * pd.Zprime(z_p)) / k_sq
-    return 1.0 - pd.Zprime(z_e) / k_sq / 2
+    return 1.0 - (pd.Zprime(z_e) + temperature_ratio * pd.Zprime(z_p)) / k_sq
 
 
-def analytic_jacobian(k, z, mass_ratio, temperature_ratio, electron_drift):
+def analytic_jacobian_two_species(k, z, mass_ratio, temperature_ratio, electron_drift):
     thermal_velocity_ratio = np.sqrt(temperature_ratio / mass_ratio)
-    # k_sq = k ** 2.0
+    k_sq = k ** 2.0
     z_e = z - electron_drift / np.sqrt(2)
     z_p = thermal_velocity_ratio * z
     fe = 1
     fp = thermal_velocity_ratio
-    # return -0.5 * (pd.Zdoubleprime(z_e) / fe + temperature_ratio * pd.Zdoubleprime(z_p) / fp) / k_sq
-    return -0.5 * pd.Zdoubleprime(z_e) / fe / (np.sqrt(2) * k ** 3)
+    return -0.5 * (pd.Zdoubleprime(z_e) / fe + temperature_ratio * pd.Zdoubleprime(z_p) / fp) / k_sq
 
 
-def eps_double_prime(k, z, mass_ratio, temperature_ratio, electron_drift):
-    z_e = z - electron_drift / np.sqrt(2)
-    fe = 1
-    return -0.5 * pd.Ztripleprime(z_e) / fe / (2 * k ** 4)
-
-
-def dispersion_fsolve(z, k, mass_ratio, temperature_ratio, electron_drift):
+def dispersion_fsolve_two_species(z, k, mass_ratio, temperature_ratio, electron_drift):
     freq = z[0] + 1j * z[1]
-    d = dispersion_function(k, freq, mass_ratio, temperature_ratio, electron_drift)
+    d = dispersion_function_two_species(k, freq, mass_ratio, temperature_ratio, electron_drift)
     return [np.real(d), np.imag(d)]
 
 
-def jacobian_fsolve(z, k, mass_ratio, temperature_ratio, electron_drift):
+def jacobian_fsolve_two_species(z, k, mass_ratio, temperature_ratio, electron_drift):
     freq = z[0] + 1j * z[1]
     jac = analytic_jacobian(k, freq, mass_ratio, temperature_ratio, electron_drift)
     jr, ji = np.real(jac), np.imag(jac)
     return [[jr, -ji], [ji, jr]]
 
 
-# parameters
-mr = 1 / 1836  # / 10  # 1836  # me / mp
-tr = 1.0  # Te / Tp
-k = 0.5
+if __name__ == '__main__':
+    # parameters
+    mr = 1 / 1836  # / 10  # 1836  # me / mp
+    tr = 1.0  # Te / Tp
+    k = 0.01
 
-e_d = 0  # 3.0
+    e_d = 0  # 3.0
 
-# grid
-om_r = np.linspace(-0.2, 5, num=500)
-om_i = np.linspace(-5, 0.1, num=500)
+    # grid
+    om_r = np.linspace(-0.1, 0.1, num=500)
+    om_i = np.linspace(-0.1, 0.1, num=500)
 
-k_scale = k * np.sqrt(2)
+    k_scale = k
 
-zr = om_r / k_scale
-zi = om_i / k_scale
+    zr = om_r / k_scale
+    zi = om_i / k_scale
 
-z = np.tensordot(zr, np.ones_like(zi), axes=0) + 1.0j * np.tensordot(np.ones_like(zr), zi, axes=0)
+    z = np.tensordot(zr, np.ones_like(zi), axes=0) + 1.0j * np.tensordot(np.ones_like(zr), zi, axes=0)
 
-X, Y = np.meshgrid(om_r, om_i, indexing='ij')
+    X, Y = np.meshgrid(om_r, om_i, indexing='ij')
 
-eps = dispersion_function(k, z, mr, tr, e_d)
-eps_prime = analytic_jacobian(k, z, mr, tr, e_d)
+    # eps = dispersion_function(k, z, mr, tr, e_d)
+    chi = 0.05
+    vb = 5
+    vtb = chi ** (1 / 3) * vb
+    eps = dispersion_function(k, z, drift_one=0, vt_one=1, two_scale=chi, drift_two=vb, vt_two=vtb)
+    cb = np.linspace(-1, 1, num=100)
 
-cb = np.linspace(-1, 1, num=100)
+    # plt.figure()
+    # plt.contourf(X, Y, np.real(eps), cb, extend='both')
 
-plt.figure()
-plt.contourf(X, Y, np.real(eps), cb, extend='both')
+    plt.figure()
+    plt.contour(X, Y, np.real(eps), 0, colors='r')
+    plt.contour(X, Y, np.imag(eps), 0, colors='g')
+    plt.grid(True)
+    plt.show()
 
-plt.figure()
-plt.contourf(X, Y, np.real(eps_prime), cb, extend='both')
-plt.xlabel('Real frequency')
-plt.ylabel('Imaginary frequency')
+    guess_r, guess_i = 0.05 / k, -0.005 / k
+    solution = opt.root(dispersion_fsolve, x0=np.array([guess_r, guess_i]),
+                        args=(k, 0, 1, chi, vb, vtb), jac=jacobian_fsolve)
+    print(solution.x * k_scale)
 
-plt.figure()
-plt.contour(X, Y, np.real(eps), 0, colors='r')
-plt.contour(X, Y, np.imag(eps), 0, colors='g')
-plt.xlabel('Real frequency')
-plt.ylabel('Imaginary frequency')
-plt.tight_layout(), plt.grid(True), plt.show()
+    # Loop over wavenumbers
+    k0 = 2.0 * np.pi / 1000
+    waves = k0 * np.arange(100)  # np.linspace(k, 0.75, num=300)
+    print(waves)
+    sols = np.zeros_like(waves) + 0j
+    for idx, wave in enumerate(waves):
+        solution = opt.root(dispersion_fsolve, x0=np.array([guess_r, guess_i]),
+                            args=(wave, 0, 1, chi, vb, vtb), jac=jacobian_fsolve)
+        guess_r, guess_i = solution.x
+        sols[idx] = (guess_r + 1j * guess_i) * wave * (2 ** 0.5)
 
-# guess_r, guess_i = (1.004, -0.01) / k_scale  # 1.43 / k_scale, -0.13 / k_scale
+    # Lattice frequencies
+    # k0 = 2.0 * np.pi / 1000
+    # grid_waves = k0 * np.arange(50)
 
-guesses_r = np.array([0, 1.4, 1.8, 2.2, 2.535, 2.83, 3.08, 3.31, 3.56, 3.80, 3.98]) / k_scale
-guesses_i = np.array([0, -0.15, -1.12, -1.67, -2.09, -2.43, -2.72, -3.01, -3.24, -3.48, -3.70]) / k_scale
+    plt.figure()
+    plt.plot(waves, np.real(sols), 'r', label='real')
+    plt.plot(waves, np.imag(sols), 'g', label='imag')
+    plt.plot(waves, np.zeros_like(waves), 'ko')
+    plt.xlabel(r'Wavenumber k'), plt.ylabel(r'Frequency $\omega_p$')
+    plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+    plt.show()
 
-num = 10
-sols = np.zeros_like(guesses_r) + 0j
-guess = np.array([1.4156618886045 - 0.1533594669096j])
-# guess = np.array([1.78957059-1.14414301j])
-f0 = -2j * np.pi * (-guess * np.exp(-0.5 * guess ** 2.0)) / np.sqrt(2.0 * np.pi) / (k ** 2.0)
+    # Visualize the modes
+    x = np.linspace(-500, 500, num=2000)
+    v = np.linspace(-3, 7, num=1000)
+    X, V = np.meshgrid(x, v, indexing='ij')
+    df = -V * np.exp(-0.5 * V ** 2.0) - chi * (V - vb) * np.exp(-0.5 * (V - vb) ** 2.0 / vtb ** 2.0) / (vtb ** 3.0)
 
-modes = np.arange(-11 + 1, 11)
-prime = np.zeros_like(guesses_r) + 0j
-amps = np.zeros_like(guesses_r) + 0j
-conj_amps = np.zeros_like(guesses_r) + 0j
 
-gauss_amps = np.zeros_like(guesses_r) + 0j
-conj_gauss = np.zeros_like(guesses_r) + 0j
+    def eigenfunction(z, k):
+        return df / (V - z) * np.exp(1j * k * X) / (k ** 2.0)
 
-for i in range(11):
-    solution = opt.root(dispersion_fsolve, x0=np.array([guesses_r[i], guesses_i[i]]), tol=1.0e-15,
-                        args=(k, mr, tr, e_d), jac=jacobian_fsolve)
-    sols[i] = (solution.x[0] + 1j * solution.x[1]) * k_scale
-    print(sols[i])
-    prime[i] = analytic_jacobian(k, sols[i] / k_scale, mr, tr, e_d)
-    if i != 0:
-        if i == 1:
-            amps[i] = 1 - 0.5 * f0 * eps_double_prime(k, guess / k_scale, mr, tr, e_d) / (
-                        analytic_jacobian(k, guess / k_scale, mr, tr, e_d) ** 2.0) / k ** 2
-            conj = -1.0 * np.conj(sols[i])
-            conj_amps[i] = f0 / ((guess - conj) * analytic_jacobian(k, conj / k_scale, mr, tr, e_d)) / k ** 2
 
-            # for "gauss amps"
-            gauss_amps[i] = pd.Z(sols[i] / k_scale) / analytic_jacobian(k, sols[i] / k_scale, mr, tr, e_d) / k ** 2
-            conj_gauss[i] = pd.Z(conj / k_scale) / analytic_jacobian(k, conj / k_scale, mr, tr, e_d) / k ** 2
-        if i != 1:
-            amps[i] = f0 / ((guess - sols[i]) * analytic_jacobian(k, sols[i] / k_scale, mr, tr, e_d)) / k ** 2
-            conj = -1.0 * np.conj(sols[i])
-            conj_amps[i] = f0 / ((guess - conj) * analytic_jacobian(k, conj / k_scale, mr, tr, e_d)) / k ** 2
+    def cb(f):
+        return np.linspace(np.amin(f), np.amax(f), num=100)
 
-            # for gauss amps
-            gauss_amps[i] = pd.Z(sols[i] / k_scale) / analytic_jacobian(k, sols[i] / k_scale, mr, tr, e_d) / k ** 2
-            conj_gauss[i] = pd.Z(conj / k_scale) / analytic_jacobian(k, conj / k_scale, mr, tr, e_d) / k ** 2
 
-amps[0] = 1
-amps = np.append(np.append(np.flip(conj_amps[1:]), 0), amps[1:])
-gamps = np.append(np.append(np.flip(conj_gauss[1:]), 0), gauss_amps[1:])
+    # modes = k0 * np.array([4, 5, 6, 7])
+    # eigs = [(1.64+0.067j)/modes[0],
+    #         (1.83+0.102j)/modes[1],
+    #         (2.04+0.102j)/modes[2],
+    #         (2.21+0.06j)/modes[3]]
+    pi2 = 2 * np.pi
 
-print(sols)
+    unstable_modes = waves[np.imag(sols) > 0.002]
+    unstable_eigs = sols[np.imag(sols) > 0.002]
+    eig_sum = 0
+    for idx in range(unstable_modes.shape[0]):
+        eigenvalue = unstable_eigs[idx] / (2 ** 0.5 * unstable_modes[idx])
+        eig = np.real(eigenfunction(eigenvalue, unstable_modes[idx]) * np.exp(1j * pi2 * np.random.random(1)))
+        plt.figure()
+        plt.contourf(X, V, eig, cb(eig))
+        plt.xlabel(r'Position $x$'), plt.ylabel(r'Velocity $v$')
+        plt.tight_layout(), plt.savefig('eig' + str(idx) + '.png')
+        plt.close()
+        eig_sum += eig
 
-plt.figure()
-plt.plot(np.real(sols), 'ro')
-plt.plot(np.imag(sols), 'go')
-plt.ylabel('Frequency')
-plt.grid(True), plt.tight_layout()
+    # eig0 = np.real(eigenfunction(eigs[0], modes[0]))
+    # eig1 = np.real(eigenfunction(eigs[1], modes[1]) * np.exp(1j * pi2 * np.random.random(1)))
+    # eig2 = np.real(eigenfunction(eigs[2], modes[2]) * np.exp(1j * pi2 * np.random.random(1)))
+    # eig3 = np.real(eigenfunction(eigs[3], modes[3]) * np.exp(1j * pi2 * np.random.random(1)))
 
-plt.figure()
-plt.plot(np.real(prime), 'ro')
-plt.plot(np.imag(prime), 'go')
-plt.ylabel('Derivative')
-plt.grid(True), plt.tight_layout()
+    #
+    # plt.figure()
+    # plt.contourf(X, V, eig0, cb(eig0))
+    # plt.xlabel(r'Position $x$'), plt.ylabel(r'Velocity $v$')
+    # plt.tight_layout(), plt.savefig('eig0.png')
+    #
+    #
+    # plt.figure()
+    # plt.contourf(X, V, eig1, cb(eig1))
+    # plt.xlabel(r'Position $x$'), plt.ylabel(r'Velocity $v$')
+    # plt.tight_layout(), plt.savefig('eig1.png')
+    #
+    # plt.figure()
+    # plt.contourf(X, V, eig2, cb(eig2))
+    # plt.xlabel(r'Position $x$'), plt.ylabel(r'Velocity $v$')
+    # plt.tight_layout(), plt.savefig('eig2.png')
 
-max = np.amax(np.absolute(amps))
-gmax = np.amax(np.absolute(gamps))
+    plt.figure()
+    plt.contourf(X, V, eig_sum, cb(eig_sum))
+    plt.xlabel(r'Position $x$'), plt.ylabel(r'Velocity $v$')
+    plt.tight_layout(), plt.savefig('eig_sum.png')
 
-plt.figure()
-# plt.plot(modes, np.real(amps) / max, 'ro')
-# plt.plot(modes, np.imag(amps) / max, 'go')
-plt.plot(modes, np.absolute(amps) / max, 'ko')
-plt.xlabel('Kinetic mode')
-plt.ylabel('Modal amplitudes [arb. units]')
-plt.title('Damping plane wave perturbation')
-plt.axis([-10, 10, 0, 1.1])
-plt.grid(True), plt.tight_layout()
-
-plt.figure()
-plt.plot(modes, np.absolute(gamps) / gmax, 'ko')
-plt.xlabel('Kinetic mode'), plt.ylabel('Modal amplitudes [arb. units]')
-plt.title('Gaussian perturbation')
-plt.axis([-10, 10, 0, 1.1])
-plt.grid(True), plt.tight_layout()
-
-plt.show()
-
-# zeta_sol = solution.x[0] + 1j * solution.x[1]
-# print(analytic_jacobian(k, zeta_sol, mr, tr, e_d))
-# print(dispersion_function(k, zeta_sol, mr, tr, e_d))
-
-# x = (solution.x[0] + 1j * solution.x[1]) * k_scale
-# print(f' x: {x:.16f}')
+    plt.show()

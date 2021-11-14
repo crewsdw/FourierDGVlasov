@@ -1,5 +1,11 @@
 import numpy as np
 import cupy as cp
+import tools.dispersion as dispersion
+import scipy.optimize as opt
+
+import matplotlib.pyplot as plt
+
+cp.random.seed(1111)
 
 
 class SpaceScalar:
@@ -60,52 +66,63 @@ class Distribution:
     def spectral_flatten(self):
         return self.arr.reshape(self.arr.shape[0], self.v_res * self.order)
 
-    def initialize(self, grid, vt, drift, perturbation=True):
+    def initialize_bump_on_tail(self, grid, vt, u, chi, vb, vtb, perturbation=True):
         ix, iv = cp.ones_like(grid.x.device_arr), cp.ones_like(grid.v.device_arr)
         maxwellian = cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=vt,
-                                                                drift_velocity=drift), axes=0)
+                                                                drift_velocity=u), axes=0)
+        bump = chi * cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=vtb,
+                                                                drift_velocity=vb), axes=0)
+        self.arr_nodal = (maxwellian + bump) / (1 + chi)
+        self.fourier_transform()
 
         # compute perturbation
-        # perturbation = cp.imag(grid.eigenfunction(thermal_velocity=1,
-        #                                           drift_velocity=[2, -2],
-        #                                           eigenvalue=1.20474886j))
-        # print('The expected growth rate is {:0.3e}'.format(grid.x.fundamental * 1.2))
-        # perturbation = np.real(grid.eigenfunction(thermal_velocity=1,
-        #                                           drift_velocity=2.0,
-        #                                           eigenvalue=-3.0j) +
-        #                        grid.eigenfunction(thermal_velocity=1,
-        #                                           drift_velocity=-2.0,
-        #                                           eigenvalue=-3.0j)) / 2.0  # -1.68 - 0.4j
         if perturbation:
-            # perturbation = np.multiply(np.sin(grid.x.fundamental * grid.x.device_arr)[:, None, None], maxwellian)
-            # eigenvalue1 = 1.00102412 - 0.10844152j
-            # eigenvalue2 = -1.00102412 - 0.10844152j
-            # eigenvalue1 = 1.4156618886045 - 0.1533594669096j
-            eigenvalue1 = 1.78957059-1.14414301j
-            # eigenvalue1 = 1.0151975255440933 - 0j
-            # eigenvalue1 = 1.0037618652948530  # 2.0459048656906247 - 0.8513304586920563j
-            # eigenvalue2 = -1.41566189 - 0.15335947j
-            eigenvalue2 = -1.78957059 - 1.14414301j
-            perturbation = self.charge_mass * cp.real(grid.eigenfunction(thermal_velocity=vt,
-                                                                 drift_velocity=drift,
-                                                                 beams='one',
-                                                                 eigenvalue=eigenvalue1))
-            perturbation += self.charge_mass * cp.real(grid.eigenfunction(thermal_velocity=vt,
-                                                                         drift_velocity=drift,
-                                                                         beams='one',
-                                                                         eigenvalue=eigenvalue2))
+            # obtain eigenvalues by solving the dispersion relation
+            sols = np.zeros_like(grid.x.wavenumbers) + 0j
+            guess_r, guess_i = 0.02 / grid.x.fundamental, -0.002 / grid.x.fundamental
+            for idx, wave in enumerate(grid.x.wavenumbers):
+                if idx == 0:
+                    continue
+                solution = opt.root(dispersion.dispersion_fsolve, x0=np.array([guess_r, guess_i]),
+                                    args=(wave, u, vt, chi, vb, vtb), jac=dispersion.jacobian_fsolve, tol=1.0e-15)
+                guess_r, guess_i = solution.x
+                sols[idx] = (guess_r + 1j * guess_i)
 
-            # perturbation += self.charge_mass * cp.real(grid.eigenfunction(thermal_velocity=vt,
-            #                                                              drift_velocity=drift,
-            #                                                              beams='one',
-            #                                                              eigenvalue=-1.41575189 - 0.15329189j))
+            plt.figure()
+            plt.plot(grid.x.wavenumbers[1:], np.real(sols[1:]), 'r', label='real')
+            plt.plot(grid.x.wavenumbers[1:], np.imag(sols[1:]), 'g', label='imag')  # * grid.x.wavenumbers * (2 ** 0.5)
+            plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Phase velocity $\zeta/v_t$')
+            plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+            plt.show()
+
+            # Build eigenfunction
+            # df = cp.tensordot(ix,
+            #                   grid.v.compute_maxwellian_gradient(thermal_velocity=vt, drift_velocity=u) +
+            #                   chi * grid.v.compute_maxwellian_gradient(thermal_velocity=vtb, drift_velocity=vb),
+            #                   axes=0) / (1 + chi)
+            df = (grid.v.compute_maxwellian_gradient(thermal_velocity=vt, drift_velocity=u) +
+                  chi * grid.v.compute_maxwellian_gradient(thermal_velocity=vtb, drift_velocity=vb)) / (1 + chi)
+
+            # def eigenfunction(z, k):
+            #     return (df / (z - grid.v.device_arr[None, :, :]) *
+            #             cp.exp(1j * k * grid.x.device_arr[:, None, None])) / k
+            def eigenfunction(z, k):
+                pi2 = 2.0 * np.pi
+                return (df / (z - grid.v.device_arr)) / k * cp.exp(1j * pi2 * cp.random.random(1))
+
+            unstable_modes = grid.x.wavenumbers[np.imag(sols) > 0.003]
+            mode_idxs = grid.x.device_modes[np.imag(sols) > 0.003]
+            unstable_eigs = sols[np.imag(sols) > 0.003]
+            # eig_sum, pi2 = 0, 2 * np.pi
+            f1 = cp.zeros_like(self.arr) + 0j
+            for idx in range(unstable_modes.shape[0]):
+                f1[mode_idxs[idx], :, :] = -self.charge_mass * eigenfunction(unstable_eigs[idx], unstable_modes[idx])
+
         else:
-            perturbation = 0
-        # grid.v.compute_maxwellian(thermal_velocity=1.0,
-        #                           drift_velocity=0.0),
-        # axes=0)
-        # self.arr_nodal = maxwellian + 1.0e-7 * perturbation
-        self.arr_nodal = maxwellian + 1.0e-4 * perturbation
+            f1 = 0
+
+        self.arr_nodal += 1.0e-2 * cp.fft.irfft(f1, axis=0, norm='forward')
+        print('Finished initialization...')
 
     def fourier_transform(self):
         # self.arr = cp.fft.fftshift(cp.fft.fft(self.arr_nodal, axis=0, norm='forward'), axes=0)
@@ -119,3 +136,32 @@ class Distribution:
 def trapz(y, dx):
     """ Custom trapz routine using cupy """
     return cp.sum(y[:-1] + y[1:]) * dx / 2.0
+
+# grid
+#             om_r = np.linspace(-0.1, 0.1, num=500)
+#             om_i = np.linspace(-0.1, 0.1, num=500)
+#
+#             k = grid.x.fundamental
+#
+#             zr = om_r / k
+#             zi = om_i / k
+#
+#             z = np.tensordot(zr, np.ones_like(zi), axes=0) + 1.0j * np.tensordot(np.ones_like(zr), zi, axes=0)
+#
+#             X, Y = np.meshgrid(om_r, om_i, indexing='ij')
+#
+#             # eps = dispersion_function(k, z, mr, tr, e_d)
+#             chi = 0.05
+#             vb = 5
+#             vtb = chi ** (1 / 3) * vb
+#             eps = dispersion.dispersion_function(k, z, drift_one=0, vt_one=1, two_scale=chi, drift_two=vb, vt_two=vtb)
+#             cb = np.linspace(-1, 1, num=100)
+#
+#             # plt.figure()
+#             # plt.contourf(X, Y, np.real(eps), cb, extend='both')
+#
+#             plt.figure()
+#             plt.contour(X, Y, np.real(eps), 0, colors='r')
+#             plt.contour(X, Y, np.imag(eps), 0, colors='g')
+#             plt.grid(True)
+#             plt.show()

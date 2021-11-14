@@ -69,13 +69,6 @@ def Z(z):
         else:
             out = Z_continued_fraction(z, terms=10)
         return out[0]
-    else:
-        z = np.array([z, 0 + 0j])
-        if np.imag(z[0]) < y_cutoff:
-            out = Z_uniform(z)
-        else:
-            out = Z_continued_fraction(z, terms=10)
-        return out[0]
 
 
 def Zprime(z):
@@ -84,7 +77,6 @@ def Zprime(z):
 
 def Zdoubleprime(z):
     return -2 * (Z(z) + z * Zprime(z))
-
 
 def Ztripleprime(z):
     return -2.0 * (2*Zprime(z) + z * Zdoubleprime(z))
