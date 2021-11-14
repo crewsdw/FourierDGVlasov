@@ -9,9 +9,9 @@ def basis_product(flux, basis_arr, axis):
 
 
 class DGFlux:
-    def __init__(self, resolutions, order, charge_mass):
+    def __init__(self, resolutions, x_res, order, charge_mass):
         self.x_ele, self.v_res = resolutions
-        self.x_res = int(self.x_ele // 2 + 1)
+        self.x_res = x_res  # int(self.x_ele // 2 + 1)
         self.order = order
 
         # slices into the DG boundaries (list of tuples)
@@ -44,33 +44,39 @@ class DGFlux:
         # self.output.arr = self.source_term(distribution=distribution, grid=grid)
 
     def initialize_zero_pad(self, grid):
-        self.pad_field = cp.zeros((grid.x.modes + grid.x.pad_width)) + 0j
-        self.pad_spectrum = cp.zeros((grid.x.modes + grid.x.pad_width,
+        self.pad_field = cp.zeros((grid.x.device_wavenumbers.shape[0] + 2*grid.x.pad_width)) + 0j
+        self.pad_spectrum = cp.zeros((grid.x.device_wavenumbers.shape[0] + 2*grid.x.pad_width,
                                       self.v_res, self.order)) + 0j
+        print(self.pad_field.shape)
+        print(grid.x.pad_width)
 
     def compute_flux(self, distribution, elliptic, grid):
         """ Compute the flux convolution(field, distribution) using pseudospectral method """
         # Zero-pad
-        self.pad_field[:-grid.x.pad_width] = elliptic.field.arr_spectral
-        self.pad_spectrum[:-grid.x.pad_width, :, :] = distribution.arr
+        print(grid.x.pad_width)
+        print(self.pad_field.shape)
+        self.pad_field[grid.x.pad_width:-grid.x.pad_width] = elliptic.field.arr_spectral
+        # print(self.pad_field)
+        # quit()
+        self.pad_spectrum[grid.x.pad_width:-grid.x.pad_width, :, :] = distribution.arr
         # Pseudospectral product
-        # field_nodal = cp.real(cp.fft.ifft(cp.fft.fftshift(padded_field_spectrum, axes=0), norm='forward', axis=0))
-        # distr_nodal = cp.real(cp.fft.ifft(cp.fft.fftshift(padded_dist_spectrum, axes=0), norm='forward', axis=0))
-        field_nodal = cp.fft.irfft(self.pad_field, norm='forward')
-        distr_nodal = cp.fft.irfft(self.pad_spectrum, norm='forward', axis=0)
+        field_nodal = cp.fft.ifft(cp.fft.fftshift(self.pad_field, axes=0), norm='forward', axis=0)
+        distr_nodal = cp.fft.ifft(cp.fft.fftshift(self.pad_spectrum, axes=0), norm='forward', axis=0)
+        # field_nodal = cp.fft.irfft(self.pad_field, norm='forward')
+        # distr_nodal = cp.fft.irfft(self.pad_spectrum, norm='forward', axis=0)
         nodal_flux = self.charge * cp.multiply(field_nodal[:, None, None], distr_nodal)
 
         # Transform back
-        # self.flux.arr = cp.fft.fftshift(cp.fft.fft(
-        #     nodal_flux, axis=0, norm='forward'), axes=0
-        # )[grid.x.pad_width:-grid.x.pad_width, :, :]
-        self.flux.arr = cp.fft.rfft(nodal_flux, norm='forward', axis=0)[:-grid.x.pad_width, :, :]
+        self.flux.arr = cp.fft.fftshift(cp.fft.fft(
+            nodal_flux, axis=0, norm='forward'), axes=0
+        )[grid.x.pad_width:-grid.x.pad_width, :, :]
+        # self.flux.arr = cp.fft.rfft(nodal_flux, norm='forward', axis=0)[:-grid.x.pad_width, :, :]
 
         # No zero-pad
         # elliptic.field.inverse_fourier_transform()
         # distribution.inverse_fourier_transform()
         # nodal_flux = self.charge * cp.multiply(elliptic.field.arr_nodal[:, None, None], distribution.arr_nodal)
-        # self.flux.arr = cp.fft.rfft(nodal_flux, norm='forward', axis=0)
+        # self.flux.arr = cp.fft.fftshift(cp.fft.fft(nodal_flux, norm='forward', axis=0))
 
     def v_flux_lgl(self, grid, distribution):
         return (basis_product(flux=self.flux.arr, basis_arr=grid.v.local_basis.internal, axis=2) -
@@ -81,7 +87,7 @@ class DGFlux:
         num_flux = cp.zeros(self.num_flux_size) + 0j
 
         # set padded flux
-        padded_flux = cp.zeros((self.x_res, self.v_res + 2, self.order)) + 0j
+        padded_flux = cp.zeros((grid.x.device_wavenumbers.shape[0], self.v_res + 2, self.order)) + 0j
         padded_flux[:, 1:-1, :] = self.flux.arr
         padded_flux[:, 0, -1] = 0.0  # -self.flux.arr[:, 0, 0]
         padded_flux[:, -1, 0] = 0.0  # -self.flux.arr[:, -1, 0]

@@ -27,10 +27,16 @@ class Plotter:
             distribution.arr[0, :] = 0
             distribution.inverse_fourier_transform()
 
-        cb = np.linspace(np.amin(distribution.arr_nodal.get()), np.amax(distribution.arr_nodal.get()), num=300)
+        dr = np.real(distribution.grid_flatten().get())
+        di = np.imag(distribution.grid_flatten().get())
+        cbr = np.linspace(np.amin(dr), np.amax(dr), num=300)
+        cbi = np.linspace(np.amin(di), np.amax(di), num=300)
 
         plt.figure()
-        plt.contourf(self.X, self.V, distribution.grid_flatten().get(), cb, cmap=self.colormap)
+        plt.contourf(self.X, self.V, dr, cbr, cmap=self.colormap)
+        plt.xlabel('x'), plt.ylabel('v'), plt.colorbar(), plt.tight_layout()
+        plt.figure()
+        plt.contourf(self.X, self.V, di, cbi, cmap=self.colormap)
         plt.xlabel('x'), plt.ylabel('v'), plt.colorbar(), plt.tight_layout()
 
         if plot_spectrum:
@@ -43,13 +49,35 @@ class Plotter:
             plt.contourf(self.FX, self.FV, spectrum, cb_s, extend='both')  # , cmap=self.colormap)
             plt.xlabel('mode'), plt.ylabel('v'), plt.colorbar(), plt.tight_layout()
 
+    def wave_phase_space_contourf(self, field, grid):
+        wigner = field.compute_wigner_distribution(grid=grid).get()
+        # print(wigner[grid.x.zero_idx.get(), :])
+        wig_r = np.real(wigner)
+        wig_i = np.imag(wigner)
+
+        cbr = np.linspace(np.amin(wig_r), np.amax(wig_r), num=100)
+        cbi = np.linspace(np.amin(wig_i), np.amax(wig_i), num=100)
+
+        plt.figure()
+        plt.contourf(grid.x.X, grid.x.K, wig_r, cbr)
+        plt.xlabel(r'Position $x$'), plt.ylabel(r'Wavenumber $k$')
+        plt.colorbar(), plt.title('Real Wigner'), plt.tight_layout()
+
+        plt.figure()
+        plt.contourf(grid.x.X, grid.x.K, wig_i, cbi)
+        plt.xlabel(r'Position $x$'), plt.ylabel(r'Wavenumber $k$')
+        plt.colorbar(), plt.title('Imag Wigner'), plt.tight_layout()
+
+        plt.show()
+
     def spatial_scalar_plot(self, scalar, y_axis, spectrum=True, quadratic=False):
         if scalar.arr_nodal is None:
             scalar.inverse_fourier_transform()
 
         plt.figure()
-        plt.plot(self.x.flatten(), scalar.arr_nodal.flatten().get(), 'o')
-        plt.xlabel('x'), plt.ylabel(y_axis)
+        plt.plot(self.x.flatten(), np.real(scalar.arr_nodal.flatten().get()), 'o', label='real')
+        plt.plot(self.x.flatten(), np.imag(scalar.arr_nodal.flatten().get()), 'o', label='imag')
+        plt.xlabel('x'), plt.ylabel(y_axis), plt.legend(loc='best')
         plt.grid(True), plt.tight_layout()
 
         if spectrum:
@@ -65,7 +93,7 @@ class Plotter:
             plt.grid(True), plt.tight_layout()
 
     def time_series_plot(self, time_in, series_in, y_axis, log=False, give_rate=False):
-        time, series = time_in, series_in.get() / self.length
+        time, series = time_in, np.absolute(series_in.get()) / self.length
         plt.figure()
         if log:
             plt.semilogy(time, series, 'o--')
@@ -100,8 +128,6 @@ class Plotter:
 
         anim = animation.FuncAnimation(fig, animate_frame, frames=len(saved_array))
         anim.save(filename='animation.mp4')
-
-
 
     def show(self):
         plt.show()

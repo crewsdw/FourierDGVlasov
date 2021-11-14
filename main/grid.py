@@ -25,12 +25,15 @@ class SpaceGrid:
         # spectral properties
         self.modes = elements // 2 + 1  # Nyquist frequency
         self.fundamental = 2.0 * np.pi / self.length
-        self.wavenumbers = self.fundamental * np.arange(-self.modes, self.modes)
+        self.wavenumbers = 2.0 * np.pi * np.fft.fftshift(np.fft.fftfreq(self.elements, d=self.dx))
+        # self.wavenumbers = self.fundamental * np.arange(-self.modes, self.modes)
         # self.wavenumbers = self.fundamental * np.arange(self.modes)
         # print(self.wavenumbers)
-        self.device_modes = cp.arange(self.modes)
+        self.device_modes = cp.array(self.wavenumbers // self.fundamental, dtype=cp.int)
+        self.device_mode_idxs = cp.arange(self.device_modes.shape[0])
         self.device_wavenumbers = cp.array(self.wavenumbers)
-        self.zero_idx = 0  # int(self.modes)
+        # self.zero_idx = 0  #
+        self.zero_idx = np.where(self.device_modes == 0)[0]
         # self.two_thirds_low = int((1 * self.modes)//3 + 1)
         # self.two_thirds_high = self.wavenumbers.shape[0] - self.two_thirds_low
         self.pad_width = int((1 * self.modes)//3 + 1)
@@ -39,10 +42,16 @@ class SpaceGrid:
         print(self.length)
         print(self.fundamental)
 
+        self.X, self.K = self.create_wave_phase_space()
+
     def create_grid(self):
         """ Build evenly spaced grid, assumed periodic """
         self.arr = np.linspace(self.low, self.high - self.dx, num=self.elements)
         self.device_arr = cp.asarray(self.arr)
+
+    def create_wave_phase_space(self):
+        return (cp.tensordot(self.device_arr, cp.ones_like(self.device_wavenumbers), axes=0).get(),
+                cp.tensordot(cp.ones_like(self.device_arr), self.device_wavenumbers/2, axes=0).get())
 
 
 class VelocityGrid:

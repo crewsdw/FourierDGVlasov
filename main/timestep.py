@@ -21,7 +21,8 @@ class StepperSingleSpecies:
         self.dt = dt
         self.step = step
         self.steps = steps
-        self.flux = fx.DGFlux(resolutions=resolutions, order=order, charge_mass=-1.0)
+        self.flux = fx.DGFlux(resolutions=resolutions, x_res=grid.x.device_wavenumbers.shape[0],
+                              order=order, charge_mass=-1.0)
         self.flux.initialize_zero_pad(grid=grid)
 
         # RK coefficients

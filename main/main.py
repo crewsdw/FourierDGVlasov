@@ -8,14 +8,14 @@ import timestep as ts
 import data
 
 # elements and order
-elements, order = [4000, 600], 8
+elements, order = [300, 500], 8
 vt = 1
 chi = 0.05
 vb = 5
 vtb = chi ** (1 / 3) * vb
 
 # set up grids
-length = 2000
+length = 500
 lows = np.array([-length / 2, -8 * vt])
 highs = np.array([length / 2, 17 * vt])
 grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
@@ -33,14 +33,15 @@ plotter = my_plt.Plotter(grid=grid)
 # plotter.distribution_contourf(distribution=distribution, plot_spectrum=True, remove_average=False)
 # plotter.spatial_scalar_plot(scalar=distribution.zero_moment, y_axis='Zero moment electrons')
 # plotter.spatial_scalar_plot(scalar=elliptic.field, y_axis='Electric field', quadratic=True)
+# plotter.wave_phase_space_contourf(field=elliptic.field, grid=grid)
 # plotter.show()
 
 # A time-stepper
 t0 = timer.time()
 time = 0
-dt = 1.5e-3
-step = 1.5e-3
-final_time = 7.0  # 22.5
+dt = 1e-3
+step = 1e-3
+final_time = 0.2  # 22.5
 steps = int(np.abs(final_time // step))
 dt_max = 1.0 / (np.amax(grid.x.wavenumbers) * np.amax(grid.v.arr))
 print('Max dt is {:0.3e}'.format(dt_max))
