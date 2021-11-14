@@ -25,8 +25,8 @@ class SpaceGrid:
         # spectral properties
         self.modes = elements // 2 + 1  # Nyquist frequency
         self.fundamental = 2.0 * np.pi / self.length
-        # self.wavenumbers = self.fundamental * np.arange(-self.modes, self.modes)
-        self.wavenumbers = self.fundamental * np.arange(self.modes)
+        self.wavenumbers = self.fundamental * np.arange(-self.modes, self.modes)
+        # self.wavenumbers = self.fundamental * np.arange(self.modes)
         # print(self.wavenumbers)
         self.device_modes = cp.arange(self.modes)
         self.device_wavenumbers = cp.array(self.wavenumbers)
