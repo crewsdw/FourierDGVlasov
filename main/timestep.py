@@ -38,7 +38,7 @@ class StepperSingleSpecies:
         num = int(self.steps // 20 + 1)
 
         # save-times
-        self.save_times = np.array([1, 2, 3, 0, 0])  # cp.array([5, 15, 25, 35, 50, 75, 100, 125, 150])
+        self.save_times = np.array([10, 20, 30, 40, 50, 0, 0])  # cp.array([5, 15, 25, 35, 50, 75, 100, 125, 150])
 
     def main_loop_adams_bashforth(self, distribution, elliptic, grid, DataFile):  # , plotter, plot=True):
         """

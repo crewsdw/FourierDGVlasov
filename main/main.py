@@ -8,7 +8,7 @@ import timestep as ts
 import data
 
 # elements and order
-elements, order = [4000, 100], 8
+elements, order = [4000, 50], 8
 vt = 1
 chi = 0.05
 vb = 5
@@ -16,7 +16,7 @@ vtb = chi ** (1 / 3) * vb
 
 # set up grids
 length = 2000
-lows = np.array([-length / 2, -8 * vt])
+lows = np.array([-length / 2, -12 * vt])
 highs = np.array([length / 2, 15 * vt])
 grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 
@@ -32,15 +32,15 @@ Elliptic.poisson_solve_single_species(distribution=Distribution, grid=grid)
 Plotter = my_plt.Plotter(grid=grid)
 # Plotter.distribution_contourf(distribution=Distribution, plot_spectrum=True, remove_average=False)
 # Plotter.spatial_scalar_plot(scalar=Distribution.zero_moment, y_axis='Zero moment electrons')
-Plotter.spatial_scalar_plot(scalar=Elliptic.field, y_axis='Electric field', quadratic=True)
+# Plotter.spatial_scalar_plot(scalar=Elliptic.field, y_axis='Electric field', quadratic=True)
 # Plotter.show()
 
 # A time-stepper
 t0 = timer.time()
 time = 0
-dt = 5.4e-4
-step = 5.4e-4
-final_time = 1  # 125  # 22.5
+dt = 6e-4
+step = 6e-4
+final_time = 51.0  # 125  # 22.5
 steps = int(np.abs(final_time // step))
 dt_max_translate = 1.0 / (np.amax(grid.x.wavenumbers) * np.amax(grid.v.arr)) / (2 * order + 1)
 print('Max dt translation is {:0.3e}'.format(dt_max_translate))
@@ -77,8 +77,8 @@ Plotter.time_series_plot(time_in=Stepper.time_array, series_in=total_energy,
                          y_axis='Total energy', log=False)
 
 # Save inventories
-print('Saving particle and energy inventories...')
-DataFile.save_inventories(total_energy=total_energy, total_density=Stepper.density_array)
+# print('Saving particle and energy inventories...')
+# DataFile.save_inventories(total_energy=total_energy, total_density=Stepper.density_array)
 
 # Look at plots
 Plotter.show()

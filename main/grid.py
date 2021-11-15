@@ -101,12 +101,23 @@ class VelocityGrid:
         self.mid_points = np.array([0.5 * (self.arr[i, -1] + self.arr[i, 0]) for i in range(self.elements)])
 
     def stretch_grid(self):
+        # Investigate grid mapping
+        plt.figure()
+        plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.25]).flatten(),
+                 'k', label='Iteration 1')
+        plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.25, 0.8]).flatten(),
+                 'g', label='Iteration 2')
+        plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.25, 0.8, 0.8]).flatten(),
+                 'r', label='Iteration 3')
+        plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.25, 0.8, 0.8, 0.8]).flatten(),
+                 'b', label='Iteration 4')
+        plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+        plt.xlabel('Input points'), plt.ylabel('Output points')
+        plt.show()
+        # Map points
         # Map lows and highs
-        mapped_lows = self.grid_map(self.arr[:, 0], order=4)
-        mapped_highs = self.grid_map(self.arr[:, -1], order=4)
-        # # print(self.arr[:, 0])
-        # print(mapped_lows)
-        # quit()
+        mapped_lows = self.iterate_map(self.arr[:, 0], orders=[0.25, 0.8, 0.8, 0.8])
+        mapped_highs = self.iterate_map(self.arr[:, -1], orders=[0.25, 0.8, 0.8, 0.8])
         self.dx_grid = mapped_highs - mapped_lows
         # self.dx_grid = self.dx * self.grid_map(self.mid_points)  # mapped_highs - mapped_lows
         # print(self.dx_grid)
@@ -122,16 +133,24 @@ class VelocityGrid:
         self.device_arr = cp.asarray(self.arr)
         self.mid_points = np.array([0.5 * (self.arr[i, -1] + self.arr[i, 0]) for i in range(self.elements)])
 
+    def iterate_map(self, points, orders):
+        for order in orders:
+            points = self.grid_map(points, order)
+        return points
+
     def grid_map(self, points, order):
-        return (self.low * ((points - self.high) / self.length) ** order +
+        return (self.low * ((self.high - points) / self.length) ** order +
                 self.high * ((points - self.low) / self.length) ** order)
+        # return (self.low * ((points - self.high) / self.length) ** order * ((points-5) / (self.low-5)) +
+        #         5 * ((points-self.high) / (self.high - 5)) ** order * ((points-self.low) / (self.low - 5)) ** order +
+        #         self.high * ((points - self.low) / self.length) ** order * ((points-5) / (self.high-5)))
         # return self.pole_distance * ((self.length + self.pole_distance) / (
         #         (points - (self.high + self.pole_distance)) *
         #         (self.low - self.pole_distance - points)))
 
-    def grid_map_jacobian(self, points, order):
-        return self.grid_map(points, order) * (1 / (points - (self.low - self.pole_distance)) +
-                                        1 / (points - (self.high + self.pole_distance)))
+    # def grid_map_jacobian(self, points, order):
+    #     return self.grid_map(points, order) * (1 / (points - (self.low - self.pole_distance)) +
+    #                                     1 / (points - (self.high + self.pole_distance)))
 
     def zero_moment(self, function, idx):
         return cp.tensordot(self.global_quads / self.J[:, None], function, axes=([0, 1], idx))  # / self.J
