@@ -37,7 +37,10 @@ class StepperSingleSpecies:
         # self.saved_field = np.array([])
         num = int(self.steps // 20 + 1)
 
-    def main_loop_adams_bashforth(self, distribution, elliptic, grid):  # , plotter, plot=True):
+        # save-times
+        self.save_times = np.array([1, 2, 3, 0, 0])  # cp.array([5, 15, 25, 35, 50, 75, 100, 125, 150])
+
+    def main_loop_adams_bashforth(self, distribution, elliptic, grid, DataFile):  # , plotter, plot=True):
         """
             Evolve the Vlasov equation in wavenumber space using the Adams-Bashforth time integration scheme
         """
@@ -61,6 +64,7 @@ class StepperSingleSpecies:
         previous_fluxes = [flux1, flux0]
 
         # Begin loop
+        save_counter = 0
         for i in range(1, self.steps):
             previous_fluxes = self.adams_bashforth(distribution=distribution,
                                                    elliptic=elliptic, grid=grid, prev_fluxes=previous_fluxes)
@@ -76,7 +80,7 @@ class StepperSingleSpecies:
             # self.dt = 0.05 / (grid.x.device_wavenumbers[largest_idx] * grid.v.high)
             # self.step = self.dt.get()
 
-            if i % 20 == 0:
+            if i % 50 == 0:
                 self.time_array = np.append(self.time_array, self.time)
                 elliptic.poisson_solve_single_species(distribution=distribution, grid=grid)
                 self.field_energy = np.append(self.field_energy, elliptic.compute_field_energy(grid=grid))
@@ -84,9 +88,14 @@ class StepperSingleSpecies:
                                                 distribution.total_thermal_energy(grid=grid))
                 self.density_array = np.append(self.density_array,
                                                distribution.total_density(grid=grid))
-                print('Took step, time is {:0.3e}'.format(self.time))
+                print('Took 50 steps, time is {:0.3e}'.format(self.time))
 
-        return distribution
+            if np.abs(self.time - self.save_times[save_counter]) < 1.0e-3:
+                print('Reached save time at {:0.3e}'.format(self.time) + ', saving data...')
+                DataFile.save_data(distribution=distribution.arr_nodal.get(),
+                                   density=distribution.zero_moment.arr_nodal.get(),
+                                   field=elliptic.field.arr_nodal.get(), time=self.time)
+                save_counter += 1
 
     def ssp_rk3(self, distribution, elliptic, grid):
         # Stage set-up

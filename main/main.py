@@ -8,7 +8,7 @@ import timestep as ts
 import data
 
 # elements and order
-elements, order = [4000, 600], 8
+elements, order = [4000, 100], 8
 vt = 1
 chi = 0.05
 vb = 5
@@ -17,19 +17,19 @@ vtb = chi ** (1 / 3) * vb
 # set up grids
 length = 2000
 lows = np.array([-length / 2, -8 * vt])
-highs = np.array([length / 2, 17 * vt])
+highs = np.array([length / 2, 16 * vt])
 grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 
 # build distribution
-distribution = var.Distribution(resolutions=elements, order=order, charge_mass=-1.0)
-distribution.initialize_bump_on_tail(grid=grid, vt=vt, u=0, chi=chi, vb=vb, vtb=vtb)
-distribution.fourier_transform(), distribution.inverse_fourier_transform()
+Distribution = var.Distribution(resolutions=elements, order=order, charge_mass=-1.0)
+Distribution.initialize_bump_on_tail(grid=grid, vt=vt, u=0, chi=chi, vb=vb, vtb=vtb)
+Distribution.fourier_transform(), Distribution.inverse_fourier_transform()
 
 # test elliptic solver
-elliptic = ell.Elliptic(resolution=elements[0])
-elliptic.poisson_solve_single_species(distribution=distribution, grid=grid)
+Elliptic = ell.Elliptic(resolution=elements[0])
+Elliptic.poisson_solve_single_species(distribution=Distribution, grid=grid)
 
-plotter = my_plt.Plotter(grid=grid)
+Plotter = my_plt.Plotter(grid=grid)
 # plotter.distribution_contourf(distribution=distribution, plot_spectrum=True, remove_average=False)
 # plotter.spatial_scalar_plot(scalar=distribution.zero_moment, y_axis='Zero moment electrons')
 # plotter.spatial_scalar_plot(scalar=elliptic.field, y_axis='Electric field', quadratic=True)
@@ -38,45 +38,44 @@ plotter = my_plt.Plotter(grid=grid)
 # A time-stepper
 t0 = timer.time()
 time = 0
-dt = 1.5e-3
-step = 1.5e-3
-final_time = 7.0  # 22.5
+dt = 5.5e-4
+step = 5.5e-4
+final_time = 4  # 125  # 22.5
 steps = int(np.abs(final_time // step))
-dt_max = 1.0 / (np.amax(grid.x.wavenumbers) * np.amax(grid.v.arr))
-print('Max dt is {:0.3e}'.format(dt_max))
-# plotter.spatial_scalar_plot(scalar=elliptic.field, y_axis='Electric Field', spectrum=True)
-
-# Set up stepper and execute main loop
-stepper = ts.StepperSingleSpecies(dt=dt, step=step, resolutions=elements, order=order,
-                                  steps=steps, grid=grid)
-distribution_f = stepper.main_loop_adams_bashforth(distribution=distribution,
-                                                   elliptic=elliptic, grid=grid)
-elliptic.field.inverse_fourier_transform()
-print('Done, it took {:0.3e}'.format(timer.time() - t0))
+dt_max_translate = 1.0 / (np.amax(grid.x.wavenumbers) * np.amax(grid.v.arr)) / (2 * order + 1)
+print('Max dt translation is {:0.3e}'.format(dt_max_translate))
 
 # Save data
-DataFile = data.Data(folder='..\\bot\\', filename='bot_t7')
-DataFile.create_file(distribution=distribution.arr_nodal.get(),
-                     density=distribution.zero_moment.arr_nodal.get(), field=elliptic.field.arr_nodal.get())
+DataFile = data.Data(folder='..\\bot\\', filename='bot_file_test_' + str(final_time))
+DataFile.create_file(distribution=Distribution.arr_nodal.get(),
+                     density=Distribution.zero_moment.arr_nodal.get(), field=Elliptic.field.arr_nodal.get())
+
+# Set up stepper and execute main loop
+Stepper = ts.StepperSingleSpecies(dt=dt, step=step, resolutions=elements, order=order,
+                                  steps=steps, grid=grid)
+Stepper.main_loop_adams_bashforth(distribution=Distribution,
+                                  elliptic=Elliptic, grid=grid, DataFile=DataFile)
+Elliptic.field.inverse_fourier_transform()
+print('Done, it took {:0.3e}'.format(timer.time() - t0))
 
 # Final visualize
-plotter.distribution_contourf(distribution=distribution, remove_average=True)
+Plotter.distribution_contourf(distribution=Distribution, remove_average=True)
 
-plotter.spatial_scalar_plot(scalar=distribution.zero_moment, y_axis='Density')
-plotter.spatial_scalar_plot(scalar=elliptic.field, y_axis='Electric Field')
+Plotter.spatial_scalar_plot(scalar=Distribution.zero_moment, y_axis='Density')
+Plotter.spatial_scalar_plot(scalar=Elliptic.field, y_axis='Electric Field')
 
-plotter.time_series_plot(time_in=stepper.time_array, series_in=stepper.field_energy,
+Plotter.time_series_plot(time_in=Stepper.time_array, series_in=Stepper.field_energy,
                          y_axis='Electric energy', log=True, give_rate=False)
-plotter.time_series_plot(time_in=stepper.time_array, series_in=stepper.thermal_energy,
+Plotter.time_series_plot(time_in=Stepper.time_array, series_in=Stepper.thermal_energy,
                          y_axis='Thermal energy electrons', log=False)
-plotter.time_series_plot(time_in=stepper.time_array, series_in=stepper.density_array,
+Plotter.time_series_plot(time_in=Stepper.time_array, series_in=Stepper.density_array,
                          y_axis='Total density electrons', log=False)
-plotter.spatial_scalar_plot(scalar=elliptic.field, y_axis='Field power spectral density', quadratic=True)
+Plotter.spatial_scalar_plot(scalar=Elliptic.field, y_axis='Field power spectral density', quadratic=True)
 # plotter.animate_line_plot(saved_array=stepper.saved_density)
-total_energy = stepper.field_energy + stepper.thermal_energy
-plotter.time_series_plot(time_in=stepper.time_array, series_in=total_energy,
+total_energy = Stepper.field_energy + Stepper.thermal_energy
+Plotter.time_series_plot(time_in=Stepper.time_array, series_in=total_energy,
                          y_axis='Total energy', log=False)
-plotter.show()
+Plotter.show()
 
 # plotter.spatial_scalar_plot(scalar=test_scalar, y_axis='test')
 # plotter.distribution_contourf(distribution=flux.flux)

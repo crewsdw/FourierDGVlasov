@@ -27,10 +27,11 @@ class Plotter:
             distribution.arr[0, :] = 0
             distribution.inverse_fourier_transform()
 
-        cb = np.linspace(np.amin(distribution.arr_nodal.get()), np.amax(distribution.arr_nodal.get()), num=300)
+        cb = np.linspace(0.6 * np.amin(distribution.arr_nodal.get()), 0.6 * np.amax(distribution.arr_nodal.get()),
+                         num=200)
 
         plt.figure()
-        plt.contourf(self.X, self.V, distribution.grid_flatten().get(), cb, cmap=self.colormap)
+        plt.contourf(self.X, self.V, distribution.grid_flatten().get(), cb, cmap=self.colormap, extend='both')
         plt.xlabel('x'), plt.ylabel('v'), plt.colorbar(), plt.tight_layout()
 
         if plot_spectrum:
@@ -100,8 +101,6 @@ class Plotter:
 
         anim = animation.FuncAnimation(fig, animate_frame, frames=len(saved_array))
         anim.save(filename='animation.mp4')
-
-
 
     def show(self):
         plt.show()

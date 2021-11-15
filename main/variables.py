@@ -2,7 +2,7 @@ import numpy as np
 import cupy as cp
 import tools.dispersion as dispersion
 import scipy.optimize as opt
-
+import cupyx.scipy.signal as sig
 import matplotlib.pyplot as plt
 
 cp.random.seed(1111)
@@ -31,6 +31,13 @@ class SpaceScalar:
         arr_add = cp.append(arr, arr[0])
         # x_add = cp.append(grid.x.device_arr, grid.x.device_arr[-1] + grid.x.dx)
         return trapz(arr_add, grid.x.dx)
+
+    def compute_wigner_distribution(self, grid):
+        # Zero-pad
+        spectrum = cp.fft.fftshift(cp.fft.fft(self.arr_nodal))
+        fourier_functions = (spectrum[None, :] *
+                             cp.exp(1j * grid.x.device_wavenumbers[None, :] * grid.x.device_arr[:, None]))
+        return sig.fftconvolve(cp.conj(fourier_functions), fourier_functions, mode='same', axes=1)
 
 
 class Distribution:
@@ -121,7 +128,7 @@ class Distribution:
         else:
             f1 = 0
 
-        self.arr_nodal += 1.0e-2 * cp.fft.irfft(f1, axis=0, norm='forward')
+        self.arr_nodal += 1.0e-3 * cp.fft.irfft(f1, axis=0, norm='forward')
         print('Finished initialization...')
 
     def fourier_transform(self):

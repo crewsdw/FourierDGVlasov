@@ -23,11 +23,27 @@ class Data:
                              chunks=True,
                              maxshape=(None, field.shape[0]),
                              dtype='f')
+            f.create_dataset('time', data=[0.0], chunks=True, maxshape=(None,))
+
+    def save_data(self, distribution, density, field, time):
+        # Open for appending
+        with h5py.File(self.write_filename, 'a') as f:
+            # Add new time line
+            f['pdf'].resize((f['pdf'].shape[0] + 1), axis=0)
+            f['density'].resize((f['density'].shape[0] + 1), axis=0)
+            f['field'].resize((f['field'].shape[0] + 1), axis=0)
+            f['time'].resize((f['time'].shape[0] + 1), axis=0)
+            # Save data
+            f['pdf'][-1] = distribution
+            f['density'][-1] = density
+            f['field'][-1] = field
+            f['time'][-1] = time
 
     def read_file(self):
         # Open for reading
         with h5py.File(self.write_filename, 'r') as f:
+            time = f['time'][()]
             pdf = f['pdf'][()]
             den = f['density'][()]
             eng = f['field'][()]
-        return pdf, den, eng
+        return time, pdf, den, eng
