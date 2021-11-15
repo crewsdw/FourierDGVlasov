@@ -15,8 +15,8 @@ vtb = chi ** (1 / 3) * vb
 
 # set up grids
 length = 2000
-lows = np.array([-length / 2, -8 * vt])
-highs = np.array([length / 2, 17 * vt])
+lows = np.array([-length / 2, -5 * vt])
+highs = np.array([length / 2, 15 * vt])
 Grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 
 # Read data

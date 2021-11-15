@@ -24,6 +24,8 @@ class Data:
                              maxshape=(None, field.shape[0]),
                              dtype='f')
             f.create_dataset('time', data=[0.0], chunks=True, maxshape=(None,))
+            f.create_dataset('total_energy', data=[], chunks=True, maxshape=(None,))
+            f.create_dataset('total_density', data=[], chunks=True, maxshape=(None,))
 
     def save_data(self, distribution, density, field, time):
         # Open for appending
@@ -38,6 +40,15 @@ class Data:
             f['density'][-1] = density
             f['field'][-1] = field
             f['time'][-1] = time
+
+    def save_inventories(self, total_energy, total_density):
+        with h5py.File(self.write_filename, 'a') as f:
+            # Add new time line
+            f['total_energy'].resize((f['total_energy'].shape[0] + 1), axis=0)
+            f['total_density'].resize((f['total_density'].shape[0] + 1), axis=0)
+            # Save data
+            f['total_energy'][-1] = total_energy.get()
+            f['total_density'][-1] = total_density.get()
 
     def read_file(self):
         # Open for reading

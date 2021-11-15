@@ -27,8 +27,10 @@ class Plotter:
             distribution.arr[0, :] = 0
             distribution.inverse_fourier_transform()
 
-        cb = np.linspace(0.6 * np.amin(distribution.arr_nodal.get()), 0.6 * np.amax(distribution.arr_nodal.get()),
+        cb = np.linspace(np.amin(distribution.arr_nodal.get()), np.amax(distribution.arr_nodal.get()),
                          num=200)
+        if remove_average:
+            cb = cb * 0.6
 
         plt.figure()
         plt.contourf(self.X, self.V, distribution.grid_flatten().get(), cb, cmap=self.colormap, extend='both')

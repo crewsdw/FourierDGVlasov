@@ -2,6 +2,7 @@ import numpy as np
 import cupy as cp
 import basis as b
 import tools.plasma_dispersion as pd
+import matplotlib.pyplot as plt
 
 
 class SpaceGrid:
@@ -57,23 +58,35 @@ class VelocityGrid:
         self.length = self.high - self.low
         self.dx = self.length / self.elements
 
+        # arrays
+        self.arr, self.device_arr = None, None
+        self.mid_points = None
+        self.create_even_grid()
+
+        # stretch / transform elements
+        self.pole_distance = 5
+        self.dx_grid = None
+        self.stretch_grid()
+
         # jacobian
-        self.J = 2.0 / self.dx
+        # self.J = 2.0 / self.dx
+        self.J = cp.asarray(2.0 / self.dx_grid)
+        plt.figure()
+        for i in range(self.elements):
+            plt.plot(np.zeros_like(self.arr[i, :]), self.arr[i, :], 'o')
+        plt.show()
 
         # global quad weights
         self.global_quads = cp.tensordot(cp.ones(elements),
                                          cp.asarray(self.local_basis.weights), axes=0)
 
-        # arrays
-        self.arr, self.device_arr = None, None
-        self.mid_points = None
-        self.create_grid()
-
         # global translation matrix
         mid_identity = np.tensordot(self.mid_points, np.eye(self.local_basis.order), axes=0)
-        self.translation_matrix = cp.asarray(mid_identity + self.local_basis.translation_matrix / self.J)
+        self.translation_matrix = cp.asarray(mid_identity +
+                                             self.local_basis.translation_matrix[None, :, :] /
+                                             self.J[:, None, None].get())
 
-    def create_grid(self):
+    def create_even_grid(self):
         """ Build global grid """
         # translate to [0, 1]
         nodes_iso = (np.array(self.local_basis.nodes) + 1) / 2
@@ -87,13 +100,46 @@ class VelocityGrid:
         self.device_arr = cp.asarray(self.arr)
         self.mid_points = np.array([0.5 * (self.arr[i, -1] + self.arr[i, 0]) for i in range(self.elements)])
 
+    def stretch_grid(self):
+        # Map lows and highs
+        mapped_lows = self.grid_map(self.arr[:, 0], order=4)
+        mapped_highs = self.grid_map(self.arr[:, -1], order=4)
+        # # print(self.arr[:, 0])
+        # print(mapped_lows)
+        # quit()
+        self.dx_grid = mapped_highs - mapped_lows
+        # self.dx_grid = self.dx * self.grid_map(self.mid_points)  # mapped_highs - mapped_lows
+        # print(self.dx_grid)
+        # xl = np.linspace(self.low, self.high - self.dx, num=self.elements)
+        # Overwrite coordinate array
+        nodes_iso = (np.array(self.local_basis.nodes) + 1) / 2
+        lows = np.zeros(self.elements+1)
+        lows[0] = self.low
+        for i in range(self.elements):
+            self.arr[i, :] = lows[i] + self.dx_grid[i] * np.array(nodes_iso)
+            lows[i+1] = self.arr[i, -1]
+        # send to device
+        self.device_arr = cp.asarray(self.arr)
+        self.mid_points = np.array([0.5 * (self.arr[i, -1] + self.arr[i, 0]) for i in range(self.elements)])
+
+    def grid_map(self, points, order):
+        return (self.low * ((points - self.high) / self.length) ** order +
+                self.high * ((points - self.low) / self.length) ** order)
+        # return self.pole_distance * ((self.length + self.pole_distance) / (
+        #         (points - (self.high + self.pole_distance)) *
+        #         (self.low - self.pole_distance - points)))
+
+    def grid_map_jacobian(self, points, order):
+        return self.grid_map(points, order) * (1 / (points - (self.low - self.pole_distance)) +
+                                        1 / (points - (self.high + self.pole_distance)))
+
     def zero_moment(self, function, idx):
-        return cp.tensordot(self.global_quads, function, axes=([0, 1], idx)) / self.J
+        return cp.tensordot(self.global_quads / self.J[:, None], function, axes=([0, 1], idx))  # / self.J
 
     def second_moment(self, function, idx):
-        return cp.tensordot(self.global_quads, cp.multiply(self.device_arr[None, :, :] ** 2.0,
+        return cp.tensordot(self.global_quads / self.J[:, None], cp.multiply(self.device_arr[None, :, :] ** 2.0,
                                                            function),
-                            axes=([0, 1], idx)) / self.J
+                            axes=([0, 1], idx))
 
     def compute_maxwellian(self, thermal_velocity, drift_velocity):
         return cp.exp(-0.5 * ((self.device_arr - drift_velocity) /

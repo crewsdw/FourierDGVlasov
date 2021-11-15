@@ -36,7 +36,7 @@ class DGFlux:
         """ Computes the semi-discrete equation """
         # Compute the flux
         self.compute_flux(distribution=distribution, elliptic=elliptic, grid=grid)
-        self.output.arr = (grid.v.J * self.v_flux_lgl(grid=grid, distribution=distribution) +
+        self.output.arr = (grid.v.J[None, :, None] * self.v_flux_lgl(grid=grid, distribution=distribution) +
                            self.source_term_lgl(distribution=distribution, grid=grid))
         # return self.output.arr
         # if not gl:

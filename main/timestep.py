@@ -80,7 +80,7 @@ class StepperSingleSpecies:
             # self.dt = 0.05 / (grid.x.device_wavenumbers[largest_idx] * grid.v.high)
             # self.step = self.dt.get()
 
-            if i % 50 == 0:
+            if i % 100 == 0:
                 self.time_array = np.append(self.time_array, self.time)
                 elliptic.poisson_solve_single_species(distribution=distribution, grid=grid)
                 self.field_energy = np.append(self.field_energy, elliptic.compute_field_energy(grid=grid))
@@ -88,7 +88,7 @@ class StepperSingleSpecies:
                                                 distribution.total_thermal_energy(grid=grid))
                 self.density_array = np.append(self.density_array,
                                                distribution.total_density(grid=grid))
-                print('Took 50 steps, time is {:0.3e}'.format(self.time))
+                print('Took 100 steps, time is {:0.3e}'.format(self.time))
 
             if np.abs(self.time - self.save_times[save_counter]) < 1.0e-3:
                 print('Reached save time at {:0.3e}'.format(self.time) + ', saving data...')
