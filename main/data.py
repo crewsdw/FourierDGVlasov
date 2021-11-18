@@ -57,4 +57,6 @@ class Data:
             pdf = f['pdf'][()]
             den = f['density'][()]
             eng = f['field'][()]
-        return time, pdf, den, eng
+            total_eng = f['total_energy'][()]
+            total_den = f['total_density'][()]
+        return time, pdf, den, eng, total_eng, total_den

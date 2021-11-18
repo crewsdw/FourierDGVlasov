@@ -4,6 +4,7 @@ import tools.dispersion as dispersion
 import scipy.optimize as opt
 import cupyx.scipy.signal as sig
 import matplotlib.pyplot as plt
+from copy import deepcopy
 
 cp.random.seed(1111)
 
@@ -51,6 +52,9 @@ class Distribution:
         self.zero_moment = SpaceScalar(resolution=resolutions[0])
         self.second_moment = SpaceScalar(resolution=resolutions[0])
 
+        # post-processing attributes
+        self.avg_dist, self.delta_f = None, None
+
     def compute_zero_moment(self, grid):
         self.inverse_fourier_transform()
         self.zero_moment.arr_nodal = grid.v.zero_moment(function=self.arr_nodal, idx=[1, 2])
@@ -62,6 +66,14 @@ class Distribution:
         self.second_moment.arr_nodal = grid.v.second_moment(function=self.arr_nodal, idx=[1, 2])
         return 0.5 * self.second_moment.integrate(grid=grid)
 
+    def average_distribution(self):
+        self.avg_dist = np.real(self.arr[0, :].get())
+
+    def compute_delta_f(self):
+        self.delta_f = self.arr_nodal.get() - self.avg_dist[None, :, :]
+
+    # def compute_field_particle_covariance(self):
+    #
     def total_density(self, grid):
         self.inverse_fourier_transform()
         self.compute_zero_moment(grid=grid)
@@ -86,7 +98,7 @@ class Distribution:
         if perturbation:
             # obtain eigenvalues by solving the dispersion relation
             sols = np.zeros_like(grid.x.wavenumbers) + 0j
-            guess_r, guess_i = 0.02 / grid.x.fundamental, -0.002 / grid.x.fundamental
+            guess_r, guess_i = 0.03 / grid.x.fundamental, -0.003 / grid.x.fundamental
             for idx, wave in enumerate(grid.x.wavenumbers):
                 if idx == 0:
                     continue

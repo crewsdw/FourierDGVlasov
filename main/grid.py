@@ -102,22 +102,44 @@ class VelocityGrid:
 
     def stretch_grid(self):
         # Investigate grid mapping
+        alphas, betas = (np.array([0.64, 0.64, 0.64, 0.64, 0.64]),  # , 0.705, 0.705, 0.705, 0.705]),
+                         np.array([0.5, 0.5, 0.5, 0.5, 0.5]))
+        # alphas, betas = (np.array([0.62, 0.62, 0.62, 0.62]),  # , 0.705, 0.705, 0.705, 0.705]),
+        #                  np.array([0.5, 0.5, 0.5, 0.5]))  # , 0.6, 0.6, 0.6, 0.6]))
         plt.figure()
-        plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.25]).flatten(),
-                 'k', label='Iteration 1')
-        plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.25, 0.8]).flatten(),
-                 'g', label='Iteration 2')
-        plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.25, 0.8, 0.8]).flatten(),
-                 'r', label='Iteration 3')
-        plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.25, 0.8, 0.8, 0.8]).flatten(),
-                 'b', label='Iteration 4')
-        plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+        plt.plot(self.arr.flatten(), self.iterate_map_asym(self.arr, alphas[:-2], betas[:-2]).flatten(),
+                 'k', label=r'Iteration 1')
+        plt.plot(self.arr.flatten(), self.iterate_map_asym(self.arr, alphas[:-1], betas[:-1]).flatten(),
+                 'k', label=r'Iteration 2')
+        plt.plot(self.arr.flatten(), self.iterate_map_asym(self.arr, alphas, betas).flatten(),
+                 'r', label=r'Iteration 3')
+        # plt.plot(self.arr.flatten(), self.grid_map_asym(self.arr, alpha=0.25, beta=0.5).flatten(),
+        #          'b', label=r'$\alpha=0.25, \beta=0.5$')
+        # plt.plot(self.arr.flatten(), self.grid_map_asym(self.arr, alpha=0.5, beta=0.25).flatten(),
+        #          'g', label=r'$\alpha=0.5, \beta=0.25$')
+        # plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.5]).flatten(),
+        #          'k', label='Iteration 1')
+        # plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.5, 0.5]).flatten(),
+        #          'g', label='Iteration 2')
+        # plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.5, 0.5, 0.9]).flatten(),
+        #          'r', label='Iteration 3')
+        # plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.5, 0.5, 0.9, 0.9, 0.9, 0.9]).flatten(),
+        #          'b', label='Iteration 4')
+        # plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.25, 0.5, 0.8, 0.8, 0.8]).flatten(),
+        #          'k', label='Iteration 5')
+        # plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.25, 0.5, 0.8, 0.8, 0.8, 0.8]).flatten(),
+        #          'k', label='Iteration 6')
         plt.xlabel('Input points'), plt.ylabel('Output points')
+        plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
         plt.show()
         # Map points
         # Map lows and highs
-        mapped_lows = self.iterate_map(self.arr[:, 0], orders=[0.25, 0.8, 0.8, 0.8])
-        mapped_highs = self.iterate_map(self.arr[:, -1], orders=[0.25, 0.8, 0.8, 0.8])
+        # orders = [0.4, 0.5, 0.8, 0.8, 0.8]  # , 0.8, 0.8]
+        # mapped_lows = self.iterate_map(self.arr[:, 0], orders=orders)
+        # mapped_highs = self.iterate_map(self.arr[:, -1], orders=orders)
+        # alphas, betas = np.array([0.3, 0.55]), np.array([0.35, 0.6])
+        mapped_lows = self.iterate_map_asym(self.arr[:, 0], alphas=alphas, betas=betas)
+        mapped_highs = self.iterate_map_asym(self.arr[:, -1], alphas=alphas, betas=betas)
         self.dx_grid = mapped_highs - mapped_lows
         # self.dx_grid = self.dx * self.grid_map(self.mid_points)  # mapped_highs - mapped_lows
         # print(self.dx_grid)
@@ -137,6 +159,15 @@ class VelocityGrid:
         for order in orders:
             points = self.grid_map(points, order)
         return points
+
+    def iterate_map_asym(self, points, alphas, betas):
+        for idx, alpha in enumerate(alphas):
+            points = self.grid_map_asym(points, alpha, betas[idx])
+        return points
+
+    def grid_map_asym(self, points, alpha, beta):
+        return (self.low * ((self.high - points) / self.length) ** alpha +
+                self.high * ((points - self.low) / self.length) ** beta)
 
     def grid_map(self, points, order):
         return (self.low * ((self.high - points) / self.length) ** order +

@@ -13,12 +13,13 @@ class Plotter:
         # Build structured grid, nodal
         self.X, self.V = np.meshgrid(grid.x.arr.flatten(), grid.v.arr.flatten(), indexing='ij')
         self.x = grid.x.arr
+        self.v = grid.v.arr.flatten()
         self.k = grid.x.wavenumbers / grid.x.fundamental
         # Build structured grid, global spectral
         self.FX, self.FV = np.meshgrid(grid.x.wavenumbers / grid.x.fundamental, grid.v.arr.flatten(),
                                      indexing='ij')
 
-    def distribution_contourf(self, distribution, plot_spectrum=True, remove_average=False):
+    def distribution_contourf(self, distribution, plot_spectrum=True, remove_average=False, max_cb=None, save=None):
         if distribution.arr_nodal is None:
             distribution.inverse_fourier_transform()
         if distribution.arr is None:
@@ -28,13 +29,17 @@ class Plotter:
             distribution.inverse_fourier_transform()
 
         cb = np.linspace(np.amin(distribution.arr_nodal.get()), np.amax(distribution.arr_nodal.get()),
-                         num=200)
+                         num=100)
         if remove_average:
-            cb = cb * 0.6
+            cb = cb * 0.25
+        if max_cb:
+            cb = cb * max_cb / np.amax(cb)
 
-        plt.figure()
+        plt.figure(figsize=(16, 8))
         plt.contourf(self.X, self.V, distribution.grid_flatten().get(), cb, cmap=self.colormap, extend='both')
         plt.xlabel('x'), plt.ylabel('v'), plt.colorbar(), plt.tight_layout()
+        if save:
+            plt.savefig(save + '.png')
 
         if plot_spectrum:
             spectrum_to_plot = distribution.spectral_flatten()
@@ -45,6 +50,26 @@ class Plotter:
             plt.figure()
             plt.contourf(self.FX, self.FV, spectrum, cb_s, extend='both')  # , cmap=self.colormap)
             plt.xlabel('mode'), plt.ylabel('v'), plt.colorbar(), plt.tight_layout()
+
+    def plot_average_distribution(self, distribution):
+        plt.figure()
+        plt.plot(self.v, distribution.avg_dist.flatten())
+        plt.xlabel('Velocity'), plt.ylabel('Average distribution')
+        plt.grid(True), plt.tight_layout()
+
+    def plot_many_velocity_averages(self, times, avg_dists):
+        plt.figure()
+        for idx in range(avg_dists.shape[0]):
+            plt.plot(self.v, avg_dists[idx, :, :].flatten(), label='t={:0.2f}'.format(times[idx]))
+        plt.xlabel('Velocity'), plt.ylabel('Average distribution')
+        plt.legend(loc='best'), plt.grid(True), plt.tight_layout()
+
+    def plot_many_field_power_spectra(self, times, field_psd):
+        plt.figure()
+        for idx in range(field_psd.shape[0]):
+            plt.semilogy(self.k.flatten(), field_psd[idx, :], label='t={:0.2f}'.format(times[idx]))
+        plt.xlabel('Mode'), plt.ylabel('Field Power Spectral Density')
+        plt.legend(loc='best'), plt.grid(True), plt.tight_layout()
 
     def spatial_scalar_plot(self, scalar, y_axis, spectrum=True, quadratic=False):
         if scalar.arr_nodal is None:
@@ -67,8 +92,11 @@ class Plotter:
             plt.xlabel('Modes'), plt.ylabel(y_axis + ' spectrum')
             plt.grid(True), plt.tight_layout()
 
-    def time_series_plot(self, time_in, series_in, y_axis, log=False, give_rate=False):
-        time, series = time_in, series_in.get() / self.length
+    def time_series_plot(self, time_in, series_in, y_axis, log=False, give_rate=False, numpy=False):
+        if not numpy:
+            time, series = time_in, series_in.get() / self.length
+        else:
+            time, series = time_in, series_in / self.length
         plt.figure()
         if log:
             plt.semilogy(time, series, 'o--')

@@ -8,15 +8,15 @@ import timestep as ts
 import data
 
 # elements and order
-elements, order = [4000, 50], 8
+elements, order = [5000, 20], 25
 vt = 1
 chi = 0.05
 vb = 5
 vtb = chi ** (1 / 3) * vb
 
 # set up grids
-length = 2000
-lows = np.array([-length / 2, -12 * vt])
+length = 1000
+lows = np.array([-length / 2, -15 * vt])
 highs = np.array([length / 2, 15 * vt])
 grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 
@@ -38,12 +38,13 @@ Plotter = my_plt.Plotter(grid=grid)
 # A time-stepper
 t0 = timer.time()
 time = 0
-dt = 6e-4
-step = 6e-4
-final_time = 51.0  # 125  # 22.5
+dt = 8.3e-5  # 4.7e-4
+step = 8.3e-5  # 4.7e-4
+final_time = 150  # 50
 steps = int(np.abs(final_time // step))
 dt_max_translate = 1.0 / (np.amax(grid.x.wavenumbers) * np.amax(grid.v.arr)) / (2 * order + 1)
 print('Max dt translation is {:0.3e}'.format(dt_max_translate))
+# quit()
 
 # Save data
 DataFile = data.Data(folder='..\\bot\\', filename='bot_file_test_' + str(final_time))
