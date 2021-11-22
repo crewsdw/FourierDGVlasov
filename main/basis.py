@@ -167,6 +167,7 @@ class LGLBasis1D:
         self.eigenvalues = self.set_eigenvalues()
         self.vandermonde = self.set_vandermonde()
         self.inv_vandermonde = self.set_inv_vandermonde()
+        self.deriv_vandermonde = self.set_deriv_vandermonde()
 
         # DG matrices
         self.mass, self.inv_mass = None, None
@@ -181,6 +182,10 @@ class LGLBasis1D:
         self.translation_matrix = None
         self.set_translation_matrix()
 
+        # compute derivative matrix
+        self.derivative_matrix = None
+        self.set_deriv_matrix()
+
     def set_eigenvalues(self):
         evs = np.array([(2.0 * s + 1) / 2.0 for s in range(self.order - 1)])
         return np.append(evs, (self.order - 1) / 2.0)
@@ -190,10 +195,20 @@ class LGLBasis1D:
                           for j in range(self.order)]
                          for s in range(self.order)])
 
+    def set_deriv_vandermonde(self):
+        return np.array([[sp.legendre(s).deriv()(self.nodes[j])
+                          for j in range(self.order)]
+                         for s in range(self.order)])
+
     def set_inv_vandermonde(self):
         return np.array([[self.weights[j] * self.eigenvalues[s] * sp.legendre(s)(self.nodes[j])
                           for j in range(self.order)]
                          for s in range(self.order)])
+
+    def set_deriv_matrix(self):
+        self.derivative_matrix = np.tensordot(self.inv_vandermonde, self.deriv_vandermonde, axes=([0], [0]))
+        # print(self.derivative_matrix)
+        # quit()
 
     def set_mass_matrix(self):
         # Diagonal part

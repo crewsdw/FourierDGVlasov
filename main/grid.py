@@ -67,14 +67,19 @@ class VelocityGrid:
         self.pole_distance = 5
         self.dx_grid = None
         self.stretch_grid()
+        self.modes = 2.0 * np.pi * np.arange(1-int(2*self.elements), int(2*self.elements)) / self.length
 
         # jacobian
         # self.J = 2.0 / self.dx
         self.J = cp.asarray(2.0 / self.dx_grid)
-        plt.figure()
-        for i in range(self.elements):
-            plt.plot(np.zeros_like(self.arr[i, :]), self.arr[i, :], 'o')
-        plt.show()
+        # plt.figure()
+        # x = np.linspace(-500, 500, num=5)
+        # X, V = np.meshgrid(x, self.arr.flatten(), indexing='ij')
+        # plt.plot(X, V, 'ko--')
+        # plt.plot(X.T, V.T, 'ko--')
+        # for i in range(self.elements):
+        #     plt.plot(np.zeros_like(self.arr[i, :]), self.arr[i, :], 'ko')
+        # plt.show()
 
         # global quad weights
         self.global_quads = cp.tensordot(cp.ones(elements),
@@ -85,6 +90,11 @@ class VelocityGrid:
         self.translation_matrix = cp.asarray(mid_identity +
                                              self.local_basis.translation_matrix[None, :, :] /
                                              self.J[:, None, None].get())
+
+        # quad matrix
+        self.fourier_quads = (self.local_basis.weights[None, None, :] *
+                              np.exp(-1j*self.modes[:, None, None]*self.arr[None, :, :]) /
+                              self.J[None, :, None].get()) / self.length
 
     def create_even_grid(self):
         """ Build global grid """

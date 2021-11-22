@@ -30,10 +30,10 @@ Elliptic = ell.Elliptic(resolution=elements[0])
 Elliptic.poisson_solve_single_species(distribution=Distribution, grid=grid)
 
 Plotter = my_plt.Plotter(grid=grid)
-# Plotter.distribution_contourf(distribution=Distribution, plot_spectrum=True, remove_average=False)
-# Plotter.spatial_scalar_plot(scalar=Distribution.zero_moment, y_axis='Zero moment electrons')
-# Plotter.spatial_scalar_plot(scalar=Elliptic.field, y_axis='Electric field', quadratic=True)
-# Plotter.show()
+Plotter.distribution_contourf(distribution=Distribution, plot_spectrum=True, remove_average=True)
+Plotter.spatial_scalar_plot(scalar=Distribution.zero_moment, y_axis='Zero moment electrons')
+Plotter.spatial_scalar_plot(scalar=Elliptic.field, y_axis='Electric field', quadratic=True)
+Plotter.show()
 
 # A time-stepper
 t0 = timer.time()

@@ -15,6 +15,7 @@ class Plotter:
         self.x = grid.x.arr
         self.v = grid.v.arr.flatten()
         self.k = grid.x.wavenumbers / grid.x.fundamental
+        self.fundamental = grid.x.fundamental
         # Build structured grid, global spectral
         self.FX, self.FV = np.meshgrid(grid.x.wavenumbers / grid.x.fundamental, grid.v.arr.flatten(),
                                      indexing='ij')
@@ -28,6 +29,7 @@ class Plotter:
             distribution.arr[0, :] = 0
             distribution.inverse_fourier_transform()
 
+        distribution.average_on_boundaries()
         cb = np.linspace(np.amin(distribution.arr_nodal.get()), np.amax(distribution.arr_nodal.get()),
                          num=100)
         if remove_average:
@@ -53,22 +55,27 @@ class Plotter:
 
     def plot_average_distribution(self, distribution):
         plt.figure()
-        plt.plot(self.v, distribution.avg_dist.flatten())
+        plt.plot(self.v, distribution.avg_dist.flatten(), 'o--')
         plt.xlabel('Velocity'), plt.ylabel('Average distribution')
         plt.grid(True), plt.tight_layout()
 
-    def plot_many_velocity_averages(self, times, avg_dists):
+    def plot_many_velocity_averages(self, times, avg_dists, y_label):
         plt.figure()
         for idx in range(avg_dists.shape[0]):
-            plt.plot(self.v, avg_dists[idx, :, :].flatten(), label='t={:0.2f}'.format(times[idx]))
-        plt.xlabel('Velocity'), plt.ylabel('Average distribution')
+            if np.amax(avg_dists[idx, :, :]) == 0:
+                continue
+            plt.plot(self.v, avg_dists[idx, :, :].flatten(), 'o', label='t={:0.2f}'.format(times[idx]))
+        plt.xlabel('Velocity'), plt.ylabel(y_label)  # 'Average distribution')
         plt.legend(loc='best'), plt.grid(True), plt.tight_layout()
 
     def plot_many_field_power_spectra(self, times, field_psd):
         plt.figure()
         for idx in range(field_psd.shape[0]):
-            plt.semilogy(self.k.flatten(), field_psd[idx, :], label='t={:0.2f}'.format(times[idx]))
-        plt.xlabel('Mode'), plt.ylabel('Field Power Spectral Density')
+            if np.amax(field_psd[idx, :]) == 0:
+                continue
+            plt.loglog(self.fundamental * self.k.flatten(), field_psd[idx, :], 'o',
+                         label='t={:0.2f}'.format(times[idx]))
+        plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel('Field Power Spectral Density')
         plt.legend(loc='best'), plt.grid(True), plt.tight_layout()
 
     def spatial_scalar_plot(self, scalar, y_axis, spectrum=True, quadratic=False):

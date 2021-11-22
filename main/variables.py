@@ -66,11 +66,39 @@ class Distribution:
         self.second_moment.arr_nodal = grid.v.second_moment(function=self.arr_nodal, idx=[1, 2])
         return 0.5 * self.second_moment.integrate(grid=grid)
 
-    def average_distribution(self):
+    def average_distribution(self, grid):
         self.avg_dist = np.real(self.arr[0, :].get())
+        # spectrum = np.tensordot(grid.v.fourier_quads, self.avg_dist, axes=([1, 2], [0, 1]))
+        # deriv = 1j * grid.v.modes * spectrum
+        # self.avg_dist = np.sum(spectrum[:, None, None] *
+        #               np.exp(1j * grid.v.modes[:, None, None] * grid.v.arr[None, :, :]), axis=0)
+        # self.inverse_fourier_transform()
+        # self.avg_dist = trapz2(self.arr_nodal, grid.x.dx).get()
+
+    def average_on_boundaries(self):
+        self.arr_nodal[:, :, 0] = (self.arr_nodal[:, :, 0] + cp.roll(self.arr_nodal, shift=+1, axis=1)[:, :, -1]) / 2
+        self.arr_nodal[:, :, -1] = (cp.roll(self.arr_nodal, shift=-1, axis=1)[:, :, 0] + self.arr_nodal[:, :, -1]) / 2
 
     def compute_delta_f(self):
         self.delta_f = self.arr_nodal.get() - self.avg_dist[None, :, :]
+
+    def compute_average_gradient(self, grid):
+        # print(grid.v.fourier_quads.shape)
+        # print(self.avg_dist.shape)
+        # spectrum = np.tensordot(grid.v.fourier_quads, self.avg_dist, axes=([1, 2], [0, 1]))
+        # deriv = 1j * grid.v.modes * spectrum
+        # return np.sum(deriv[:, None, None] *
+        #               np.exp(1j * grid.v.modes[:, None, None] * grid.v.arr[None, :, :]), axis=0)
+        return np.tensordot(self.avg_dist,
+                            grid.v.local_basis.derivative_matrix, axes=([1], [0])) * grid.v.J[:, None].get()
+
+    def field_particle_covariance(self, Elliptic, Grid):
+        fluctuation_field = cp.array(self.delta_f * Elliptic.field.arr_nodal.get()[:, None, None])
+        return trapz2(fluctuation_field, Grid.x.dx).get() / Grid.x.length
+
+    def variance_of_field_particle_covariance(self, Elliptic, Grid, covariance):
+        fluctuation_field = cp.array(self.delta_f * Elliptic.field.arr_nodal.get()[:, None, None])
+        return trapz2((fluctuation_field - cp.array(covariance))**2, Grid.x.dx).get() / Grid.x.length
 
     # def compute_field_particle_covariance(self):
     #
@@ -108,8 +136,8 @@ class Distribution:
                 sols[idx] = (guess_r + 1j * guess_i)
 
             plt.figure()
-            plt.plot(grid.x.wavenumbers[1:], np.real(sols[1:]), 'r', label='real')
-            plt.plot(grid.x.wavenumbers[1:], np.imag(sols[1:]), 'g', label='imag')  # * grid.x.wavenumbers * (2 ** 0.5)
+            plt.plot(grid.x.wavenumbers[1:], np.real(sols[1:]), 'ro--', label='Real part')
+            plt.plot(grid.x.wavenumbers[1:], 20 * np.imag(sols[1:]), 'go--', label=r'Imaginary part, $\times 20$')
             plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Phase velocity $\zeta/v_t$')
             plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
             plt.show()
@@ -122,7 +150,7 @@ class Distribution:
             df = (grid.v.compute_maxwellian_gradient(thermal_velocity=vt, drift_velocity=u) +
                   chi * grid.v.compute_maxwellian_gradient(thermal_velocity=vtb, drift_velocity=vb)) / (1 + chi)
 
-            # def eigenfunction(z, k):
+            # def eigenfunction(z, k):zs
             #     return (df / (z - grid.v.device_arr[None, :, :]) *
             #             cp.exp(1j * k * grid.x.device_arr[:, None, None])) / k
             def eigenfunction(z, k):
@@ -155,6 +183,10 @@ class Distribution:
 def trapz(y, dx):
     """ Custom trapz routine using cupy """
     return cp.sum(y[:-1] + y[1:]) * dx / 2.0
+
+
+def trapz2(y, dx):
+    return cp.sum(y[:-1, :] + y[1:, :], axis=0) * dx / 2.0
 
 # grid
 #             om_r = np.linspace(-0.1, 0.1, num=500)
