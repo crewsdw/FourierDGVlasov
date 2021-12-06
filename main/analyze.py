@@ -72,8 +72,8 @@ for idx, time in enumerate(time_data[jump:]):
     # diff_estimate[diff_estimate < 0] = 0
     # diff_estimate[diff_estimate > 3] = 0
     # Analyze data
-    Plotter.distribution_contourf(distribution=Distribution, plot_spectrum=False, remove_average=True,
-                                  max_cb=0.005, save='..\\bot_figs\\pdf{:d}'.format(int(time)))
+    # Plotter.distribution_contourf(distribution=Distribution, plot_spectrum=False, remove_average=True,
+    #                               max_cb=0.005, save='..\\bot_figs\\pdf{:d}'.format(int(time)))
     # Plotter.distribution_contourf(distribution=DeltaOfCorrelation, plot_spectrum=False, remove_average=False,
     #                               max_cb=None, save='..\\bot_figs\\dropped_term_{:d}'.format(int(time)))
     # Plotter.plot_average_distribution(distribution=Distribution)

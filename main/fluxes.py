@@ -33,11 +33,11 @@ class DGFlux:
         self.charge = charge_mass
 
     def semi_discrete_rhs(self, distribution, elliptic, grid):
-        """ Computes the semi-discrete equation """
+        """ Computes the semi-discrete equation for velocity flux only """
         # Compute the flux
         self.compute_flux(distribution=distribution, elliptic=elliptic, grid=grid)
-        self.output.arr = (grid.v.J[None, :, None] * self.v_flux_lgl(grid=grid, distribution=distribution) +
-                           self.source_term_lgl(distribution=distribution, grid=grid))
+        self.output.arr = (grid.v.J[None, :, None] * self.v_flux_lgl(grid=grid, distribution=distribution))  # +
+        #                    self.source_term_lgl(distribution=distribution, grid=grid))
         # return self.output.arr
         # if not gl:
         #     self.output.arr = (grid.v.J * self.v_flux_lgl(grid=grid))
@@ -110,9 +110,9 @@ class DGFlux:
 
         return basis_product(flux=num_flux, basis_arr=grid.v.local_basis.numerical, axis=2)
 
-    def source_term_lgl(self, distribution, grid):
+    def source_term_lgl_no_arr(self, distribution_arr, grid):
         return -1.0j * cp.multiply(grid.x.device_wavenumbers[:, None, None],
-                                   cp.einsum('ijk,mik->mij', grid.v.translation_matrix, distribution.arr))
+                                   cp.einsum('ijk,mik->mij', grid.v.translation_matrix, distribution_arr))
 
     # def source_term_gl(self, distribution, grid):
     #     return -1.0j * cp.multiply(grid.x.device_wavenumbers[:, None, None],

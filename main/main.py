@@ -16,8 +16,8 @@ vtb = chi ** (1 / 3) * vb
 
 # set up grids
 length = 1000
-lows = np.array([-length / 2, -15 * vt])
-highs = np.array([length / 2, 15 * vt])
+lows = np.array([-length / 2, -20 * vt])
+highs = np.array([length / 2, 20 * vt])
 grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 
 # build distribution
@@ -30,24 +30,25 @@ Elliptic = ell.Elliptic(resolution=elements[0])
 Elliptic.poisson_solve_single_species(distribution=Distribution, grid=grid)
 
 Plotter = my_plt.Plotter(grid=grid)
-Plotter.distribution_contourf(distribution=Distribution, plot_spectrum=True, remove_average=True)
-Plotter.spatial_scalar_plot(scalar=Distribution.zero_moment, y_axis='Zero moment electrons')
+# Plotter.distribution_contourf(distribution=Distribution, plot_spectrum=True, remove_average=True)
+# Plotter.spatial_scalar_plot(scalar=Distribution.zero_moment, y_axis='Zero moment electrons')
 Plotter.spatial_scalar_plot(scalar=Elliptic.field, y_axis='Electric field', quadratic=True)
 Plotter.show()
 
 # A time-stepper
 t0 = timer.time()
 time = 0
-dt = 8.3e-5  # 4.7e-4
-step = 8.3e-5  # 4.7e-4
-final_time = 150  # 50
+dt = 5.0e-3  # 4.7e-4
+step = 5.0e-3  # 4.7e-4
+final_time = 130.0  # 100  # 150  # 50
 steps = int(np.abs(final_time // step))
 dt_max_translate = 1.0 / (np.amax(grid.x.wavenumbers) * np.amax(grid.v.arr)) / (2 * order + 1)
+cutoff_velocity = 1.0 / (np.amax(grid.x.wavenumbers) * dt) / (2 * order + 1)
 print('Max dt translation is {:0.3e}'.format(dt_max_translate))
-# quit()
+print('Cutoff velocity at max wavenumber is {:0.3e}'.format(cutoff_velocity))
 
 # Save data
-DataFile = data.Data(folder='..\\bot\\', filename='bot_file_test_' + str(final_time))
+DataFile = data.Data(folder='..\\bot\\', filename='bot_run' + str(final_time))
 DataFile.create_file(distribution=Distribution.arr_nodal.get(),
                      density=Distribution.zero_moment.arr_nodal.get(), field=Elliptic.field.arr_nodal.get())
 
@@ -65,17 +66,18 @@ Plotter.distribution_contourf(distribution=Distribution, remove_average=True)
 Plotter.spatial_scalar_plot(scalar=Distribution.zero_moment, y_axis='Density')
 Plotter.spatial_scalar_plot(scalar=Elliptic.field, y_axis='Electric Field')
 
+numpy_or_no = False
 Plotter.time_series_plot(time_in=Stepper.time_array, series_in=Stepper.field_energy,
-                         y_axis='Electric energy', log=True, give_rate=False)
+                         y_axis='Electric energy', log=True, give_rate=False, numpy=numpy_or_no)
 Plotter.time_series_plot(time_in=Stepper.time_array, series_in=Stepper.thermal_energy,
-                         y_axis='Thermal energy electrons', log=False)
+                         y_axis='Thermal energy electrons', log=False, numpy=numpy_or_no)
 Plotter.time_series_plot(time_in=Stepper.time_array, series_in=Stepper.density_array,
-                         y_axis='Total density electrons', log=False)
+                         y_axis='Total density electrons', log=False, numpy=numpy_or_no)
 Plotter.spatial_scalar_plot(scalar=Elliptic.field, y_axis='Field power spectral density', quadratic=True)
 # plotter.animate_line_plot(saved_array=stepper.saved_density)
 total_energy = Stepper.field_energy + Stepper.thermal_energy
 Plotter.time_series_plot(time_in=Stepper.time_array, series_in=total_energy,
-                         y_axis='Total energy', log=False)
+                         y_axis='Total energy', log=False, numpy=numpy_or_no)
 
 # Save inventories
 # print('Saving particle and energy inventories...')

@@ -37,14 +37,19 @@ class StepperSingleSpecies:
         # self.saved_field = np.array([])
         num = int(self.steps // 20 + 1)
 
+        # semi-implicit matrix
+        self.inv_backward_advection = None
+        self.build_advection_matrix(grid=grid)
+
         # save-times
-        self.save_times = np.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 0, 0])
+        self.save_times = np.array([1.0e-4, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 0, 0])
 
     def main_loop_adams_bashforth(self, distribution, elliptic, grid, DataFile):  # , plotter, plot=True):
         """
             Evolve the Vlasov equation in wavenumber space using the Adams-Bashforth time integration scheme
         """
         print('Beginning main loop')
+        # self.steps = 2
 
         # Compute first two steps with ssp-rk3 and save fluxes
         # zeroth step
@@ -69,17 +74,9 @@ class StepperSingleSpecies:
             previous_fluxes = self.adams_bashforth(distribution=distribution,
                                                    elliptic=elliptic, grid=grid, prev_fluxes=previous_fluxes)
             self.time += self.step
+            # print('Took a step')
 
             # Check out noise levels. Note: Incorrect to naively adapt time-step for adams-bashforth method
-            # plt.figure()
-            # plt.plot(grid.x.wavenumbers[1:], np.absolute(distribution.zero_moment.arr_spectral.get())[1:], 'o')
-            # plt.show()
-            # largest_idx = cp.amax(grid.x.device_modes[cp.absolute(distribution.zero_moment.arr_spectral) > 1.0e-9])
-            # # adapt time-step
-            # # print(self.dt)
-            # self.dt = 0.05 / (grid.x.device_wavenumbers[largest_idx] * grid.v.high)
-            # self.step = self.dt.get()
-
             if i % 100 == 0:
                 self.time_array = np.append(self.time_array, self.time)
                 elliptic.poisson_solve_single_species(distribution=distribution, grid=grid)
@@ -98,6 +95,8 @@ class StepperSingleSpecies:
                 save_counter += 1
 
     def ssp_rk3(self, distribution, elliptic, grid):
+        # Cut-off
+        cutoff = 500
         # Stage set-up
         stage0 = var.Distribution(resolutions=self.resolutions, order=self.order, charge_mass=None)
         stage1 = var.Distribution(resolutions=self.resolutions, order=self.order, charge_mass=None)
@@ -105,11 +104,13 @@ class StepperSingleSpecies:
         # zero stage
         elliptic.poisson_solve_single_species(distribution=distribution, grid=grid)
         self.flux.semi_discrete_rhs(distribution=distribution, elliptic=elliptic, grid=grid)
+        self.flux.output.arr[grid.x.device_modes > cutoff, :, :] = 0
         stage0.arr = distribution.arr + self.dt * self.flux.output.arr
 
         # first stage
         elliptic.poisson_solve_single_species(distribution=stage0, grid=grid)
         self.flux.semi_discrete_rhs(distribution=stage0, elliptic=elliptic, grid=grid)
+        self.flux.output.arr[grid.x.device_modes > cutoff, :, :] = 0
         stage1.arr = (
                 self.rk_coefficients[0, 0] * distribution.arr +
                 self.rk_coefficients[0, 1] * stage0.arr +
@@ -119,6 +120,7 @@ class StepperSingleSpecies:
         # second stage
         elliptic.poisson_solve_single_species(distribution=stage1, grid=grid)
         self.flux.semi_discrete_rhs(distribution=stage1, elliptic=elliptic, grid=grid)
+        self.flux.output.arr[grid.x.device_modes > cutoff, :, :] = 0
         distribution.arr = (
                 self.rk_coefficients[1, 0] * distribution.arr +
                 self.rk_coefficients[1, 1] * stage1.arr +
@@ -130,12 +132,43 @@ class StepperSingleSpecies:
         elliptic.poisson_solve_single_species(distribution=distribution, grid=grid)
         self.flux.semi_discrete_rhs(distribution=distribution, elliptic=elliptic, grid=grid)
 
-        # Update distribution
-        distribution.arr += self.dt * (23 / 12 * self.flux.output.arr -
-                                       4 / 3 * prev_fluxes[0] +
-                                       5 / 12 * prev_fluxes[1])
+        # old_distribution = distribution.arr
+
+        # Update distribution according to explicit treatment of velocity flux and crank-nicholson for advection
+        distribution.arr += self.dt * ((23 / 12 * self.flux.output.arr -
+                                        4 / 3 * prev_fluxes[0] +
+                                        5 / 12 * prev_fluxes[1]) +
+                                       0.5 * self.flux.source_term_lgl_no_arr(distribution_arr=distribution.arr,
+                                                                              grid=grid))
+
+        # Do half forward advection step
+        # distribution.arr += 2 * 0.5 * self.dt * self.flux.source_term_lgl_no_arr(distribution_arr=old_distribution,
+        #                                                                      grid=grid)
+
+        # Do inverse half backward advection step
+        distribution.arr = cp.einsum('nmjk,nmk->nmj', self.inv_backward_advection, distribution.arr)
+
+        # Recompute flux at this point
+        # elliptic.poisson_solve_single_species(distribution=distribution, grid=grid)
+        # self.flux.semi_discrete_rhs(distribution=distribution, elliptic=elliptic, grid=grid)
+
         # update previous_fluxes (n-2, n-1)
         return [self.flux.output.arr, prev_fluxes[0]]
+
+    def build_advection_matrix(self, grid):
+        """ Construct the global backward advection matrix """
+        # for i in range(grid.x.device_wavenumbers.shape):
+        #     modal_advection = -1.0j * grid.x.device_wavenumbers[i] * grid.v.translation_matrix
+        #     modal_advection = modal_advection.flatten()
+        #     backward_advection_matrix = cp.eye(modal_advection.shape[0]) - 0.5 * self.dt * modal_advection
+        backward_advection_operator = (cp.eye(grid.v.order)[None, None, :, :] -
+                                       0.5 * self.dt * -1j * grid.x.device_wavenumbers[:, None, None, None] *
+                                       grid.v.translation_matrix[None, :, :, :])
+        self.inv_backward_advection = cp.linalg.inv(backward_advection_operator)
+        # Check
+        # print(cp.isclose(cp.einsum('nmjr,nmrk->nmjk', self.inv_backward_advection, backward_advection_operator),
+        #                  cp.eye)
+        # self.inv_backward_advection = backward_advection_operator
 
 
 class StepperTwoSpecies:

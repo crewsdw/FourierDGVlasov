@@ -100,8 +100,6 @@ class Distribution:
         fluctuation_field = cp.array(self.delta_f * Elliptic.field.arr_nodal.get()[:, None, None])
         return trapz2((fluctuation_field - cp.array(covariance))**2, Grid.x.dx).get() / Grid.x.length
 
-    # def compute_field_particle_covariance(self):
-    #
     def total_density(self, grid):
         self.inverse_fourier_transform()
         self.compute_zero_moment(grid=grid)
@@ -160,15 +158,21 @@ class Distribution:
             unstable_modes = grid.x.wavenumbers[np.imag(sols) > 0.003]
             mode_idxs = grid.x.device_modes[np.imag(sols) > 0.003]
             unstable_eigs = sols[np.imag(sols) > 0.003]
+            largest_growth_rate = cp.amax(np.imag(unstable_eigs) * unstable_modes)
             # eig_sum, pi2 = 0, 2 * np.pi
             f1 = cp.zeros_like(self.arr) + 0j
             for idx in range(unstable_modes.shape[0]):
-                f1[mode_idxs[idx], :, :] = -self.charge_mass * eigenfunction(unstable_eigs[idx], unstable_modes[idx])
+                growth_rate = 1.0e-3 * np.imag(unstable_eigs[idx]) * unstable_modes[idx] / largest_growth_rate
+                f1[mode_idxs[idx], :, :] = (-self.charge_mass * growth_rate *
+                                            eigenfunction(unstable_eigs[idx], unstable_modes[idx]))
 
         else:
             f1 = 0
 
-        self.arr_nodal += 1.0e-3 * cp.fft.irfft(f1, axis=0, norm='forward')
+        # f1 = f1 / cp.amax(cp.absolute(f1))
+        # print(cp.amax(cp.absolute(f1)))
+        inverse = cp.fft.irfft(f1, axis=0, norm='forward')
+        self.arr_nodal += inverse  # 1.0e-3 * inverse / cp.amax(inverse)
         print('Finished initialization...')
 
     def fourier_transform(self):
