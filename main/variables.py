@@ -124,7 +124,9 @@ class Distribution:
         if perturbation:
             # obtain eigenvalues by solving the dispersion relation
             sols = np.zeros_like(grid.x.wavenumbers) + 0j
-            guess_r, guess_i = 0.03 / grid.x.fundamental, -0.003 / grid.x.fundamental
+            # guess_r, guess_i = 0.03 / grid.x.fundamental, -0.003 / grid.x.fundamental  # L=1000
+            # guess_r, guess_i = 0.02 / grid.x.fundamental, -0.002 / grid.x.fundamental  # L=
+            guess_r, guess_i = 5.5, -23/20
             for idx, wave in enumerate(grid.x.wavenumbers):
                 if idx == 0:
                     continue

@@ -7,20 +7,20 @@ import data
 import cupy as cp
 
 # elements and order
-elements, order = [5000, 20], 25  # [5000, 50], 8
+elements, order = [20000, 15], 25  # [5000, 50], 8
 vt = 1
 chi = 0.05
 vb = 5
 vtb = chi ** (1 / 3) * vb
 
 # set up grids
-length = 1000
-lows = np.array([-length / 2, -15 * vt])
-highs = np.array([length / 2, 15 * vt])
+length = 5000
+lows = np.array([-length / 2, -20 * vt])
+highs = np.array([length / 2, 20 * vt])
 Grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 
 # Read data
-DataFile = data.Data(folder='..\\bot\\', filename='bot_file_test_150')
+DataFile = data.Data(folder='..\\bot\\', filename='bot_run151')
 time_data, distribution_data, density_data, field_data, total_eng, total_den = DataFile.read_file()
 
 # Set up plotter
@@ -37,7 +37,7 @@ delta_of_correlation = np.zeros((time_data.shape[0], elements[0], elements[1], o
 
 # just_some_idx, just_some_time = np.array([1, 5, 10, 15]), np.array([1, 5, 10, 15])
 jump = 0
-for idx, time in enumerate(time_data[jump:]):
+for idx, time in enumerate(time_data[jump:-12]):
     # for iidx, time in enumerate(just_some_time):
     idx += jump
     # idx = just_some_idx[iidx]
@@ -72,8 +72,8 @@ for idx, time in enumerate(time_data[jump:]):
     # diff_estimate[diff_estimate < 0] = 0
     # diff_estimate[diff_estimate > 3] = 0
     # Analyze data
-    # Plotter.distribution_contourf(distribution=Distribution, plot_spectrum=False, remove_average=True,
-    #                               max_cb=0.005, save='..\\bot_figs\\pdf{:d}'.format(int(time)))
+    Plotter.distribution_contourf(distribution=Distribution, plot_spectrum=False, remove_average=True,
+                                  max_cb=0.005, save='..\\bot_figs\\pdf{:d}'.format(int(time)))
     # Plotter.distribution_contourf(distribution=DeltaOfCorrelation, plot_spectrum=False, remove_average=False,
     #                               max_cb=None, save='..\\bot_figs\\dropped_term_{:d}'.format(int(time)))
     # Plotter.plot_average_distribution(distribution=Distribution)

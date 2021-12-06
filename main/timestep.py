@@ -42,7 +42,7 @@ class StepperSingleSpecies:
         self.build_advection_matrix(grid=grid)
 
         # save-times
-        self.save_times = np.array([1.0e-4, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 0, 0])
+        self.save_times = np.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 0, 0])
 
     def main_loop_adams_bashforth(self, distribution, elliptic, grid, DataFile):  # , plotter, plot=True):
         """
@@ -87,7 +87,7 @@ class StepperSingleSpecies:
                                                distribution.total_density(grid=grid))
                 print('Took 100 steps, time is {:0.3e}'.format(self.time))
 
-            if np.abs(self.time - self.save_times[save_counter]) < 1.0e-3:
+            if np.abs(self.time - self.save_times[save_counter]) < 6.0e-3:
                 print('Reached save time at {:0.3e}'.format(self.time) + ', saving data...')
                 DataFile.save_data(distribution=distribution.arr_nodal.get(),
                                    density=distribution.zero_moment.arr_nodal.get(),
@@ -128,47 +128,26 @@ class StepperSingleSpecies:
         )
 
     def adams_bashforth(self, distribution, elliptic, grid, prev_fluxes):
-        # Compute flux at this point
+        # Compute Poisson constraint
         elliptic.poisson_solve_single_species(distribution=distribution, grid=grid)
+        # Compute velocity flux
         self.flux.semi_discrete_rhs(distribution=distribution, elliptic=elliptic, grid=grid)
-
-        # old_distribution = distribution.arr
-
         # Update distribution according to explicit treatment of velocity flux and crank-nicholson for advection
         distribution.arr += self.dt * ((23 / 12 * self.flux.output.arr -
                                         4 / 3 * prev_fluxes[0] +
                                         5 / 12 * prev_fluxes[1]) +
                                        0.5 * self.flux.source_term_lgl_no_arr(distribution_arr=distribution.arr,
                                                                               grid=grid))
-
-        # Do half forward advection step
-        # distribution.arr += 2 * 0.5 * self.dt * self.flux.source_term_lgl_no_arr(distribution_arr=old_distribution,
-        #                                                                      grid=grid)
-
         # Do inverse half backward advection step
         distribution.arr = cp.einsum('nmjk,nmk->nmj', self.inv_backward_advection, distribution.arr)
-
-        # Recompute flux at this point
-        # elliptic.poisson_solve_single_species(distribution=distribution, grid=grid)
-        # self.flux.semi_discrete_rhs(distribution=distribution, elliptic=elliptic, grid=grid)
-
-        # update previous_fluxes (n-2, n-1)
         return [self.flux.output.arr, prev_fluxes[0]]
 
     def build_advection_matrix(self, grid):
         """ Construct the global backward advection matrix """
-        # for i in range(grid.x.device_wavenumbers.shape):
-        #     modal_advection = -1.0j * grid.x.device_wavenumbers[i] * grid.v.translation_matrix
-        #     modal_advection = modal_advection.flatten()
-        #     backward_advection_matrix = cp.eye(modal_advection.shape[0]) - 0.5 * self.dt * modal_advection
         backward_advection_operator = (cp.eye(grid.v.order)[None, None, :, :] -
                                        0.5 * self.dt * -1j * grid.x.device_wavenumbers[:, None, None, None] *
                                        grid.v.translation_matrix[None, :, :, :])
         self.inv_backward_advection = cp.linalg.inv(backward_advection_operator)
-        # Check
-        # print(cp.isclose(cp.einsum('nmjr,nmrk->nmjk', self.inv_backward_advection, backward_advection_operator),
-        #                  cp.eye)
-        # self.inv_backward_advection = backward_advection_operator
 
 
 class StepperTwoSpecies:
