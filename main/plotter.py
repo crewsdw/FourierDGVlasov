@@ -21,6 +21,7 @@ class Plotter:
                                      indexing='ij')
 
     def distribution_contourf(self, distribution, plot_spectrum=True, remove_average=False, max_cb=None, save=None):
+        # distribution.average_on_boundaries()
         if distribution.arr_nodal is None:
             distribution.inverse_fourier_transform()
         if distribution.arr is None:
@@ -29,7 +30,6 @@ class Plotter:
             distribution.arr[0, :] = 0
             distribution.inverse_fourier_transform()
 
-        distribution.average_on_boundaries()
         cb = np.linspace(np.amin(distribution.arr_nodal.get()), np.amax(distribution.arr_nodal.get()),
                          num=100)
         if remove_average:

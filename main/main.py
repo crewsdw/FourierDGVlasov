@@ -8,7 +8,7 @@ import timestep as ts
 import data
 
 # elements and order
-elements, order = [20000, 15], 25
+elements, order = [20000, 25], 20
 vt = 1
 chi = 0.05
 vb = 5
@@ -16,8 +16,8 @@ vtb = chi ** (1 / 3) * vb
 
 # set up grids
 length = 5000  # 1000
-lows = np.array([-length / 2, -20 * vt])
-highs = np.array([length / 2, 20 * vt])
+lows = np.array([-length / 2, -25 * vt])
+highs = np.array([length / 2, 25 * vt])
 grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 
 # build distribution
@@ -38,9 +38,9 @@ Plotter.show()
 # A time-stepper
 t0 = timer.time()
 time = 0
-dt = 5.0e-3  # 4.7e-4
-step = 5.0e-3  # 4.7e-4
-final_time = 151  # 100  # 100  # 150  # 50
+dt = 1.0e-3  # 4.7e-4
+step = 1.0e-3  # 4.7e-4
+final_time = 50  # 151  # 100  # 100  # 150  # 50
 steps = int(np.abs(final_time // step))
 dt_max_translate = 1.0 / (np.amax(grid.x.wavenumbers) * np.amax(grid.v.arr)) / (2 * order + 1)
 cutoff_velocity = 1.0 / (np.amax(grid.x.wavenumbers) * dt) / (2 * order + 1)

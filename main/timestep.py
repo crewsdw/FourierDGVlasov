@@ -73,6 +73,8 @@ class StepperSingleSpecies:
         for i in range(1, self.steps):
             previous_fluxes = self.adams_bashforth(distribution=distribution,
                                                    elliptic=elliptic, grid=grid, prev_fluxes=previous_fluxes)
+            # experiment: enforce continuity on boundaries... a problem?
+            distribution.average_on_boundaries()
             self.time += self.step
             # print('Took a step')
 
@@ -85,7 +87,12 @@ class StepperSingleSpecies:
                                                 distribution.total_thermal_energy(grid=grid))
                 self.density_array = np.append(self.density_array,
                                                distribution.total_density(grid=grid))
+                # Max time-step velocity space
+                elliptic.field.inverse_fourier_transform()
+                max_field = cp.amax(elliptic.field.arr_nodal)
+                max_dt = grid.v.min_dv / max_field / (2 * self.order + 1) / (2 * np.pi) * 0.01
                 print('Took 100 steps, time is {:0.3e}'.format(self.time))
+                # print('Max velocity-flux dt is {:0.3e}'.format(max_dt))
 
             if np.abs(self.time - self.save_times[save_counter]) < 6.0e-3:
                 print('Reached save time at {:0.3e}'.format(self.time) + ', saving data...')

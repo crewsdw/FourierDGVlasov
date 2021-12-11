@@ -76,8 +76,9 @@ class Distribution:
         # self.avg_dist = trapz2(self.arr_nodal, grid.x.dx).get()
 
     def average_on_boundaries(self):
-        self.arr_nodal[:, :, 0] = (self.arr_nodal[:, :, 0] + cp.roll(self.arr_nodal, shift=+1, axis=1)[:, :, -1]) / 2
-        self.arr_nodal[:, :, -1] = (cp.roll(self.arr_nodal, shift=-1, axis=1)[:, :, 0] + self.arr_nodal[:, :, -1]) / 2
+        self.arr[:, :, 0], self.arr[:, :, -1] = (
+            (self.arr[:, :, 0] + cp.roll(self.arr, shift=+1, axis=1)[:, :, -1]) / 2,
+            (cp.roll(self.arr, shift=-1, axis=1)[:, :, 0] + self.arr[:, :, -1]) / 2)
 
     def compute_delta_f(self):
         self.delta_f = self.arr_nodal.get() - self.avg_dist[None, :, :]
@@ -98,7 +99,7 @@ class Distribution:
 
     def variance_of_field_particle_covariance(self, Elliptic, Grid, covariance):
         fluctuation_field = cp.array(self.delta_f * Elliptic.field.arr_nodal.get()[:, None, None])
-        return trapz2((fluctuation_field - cp.array(covariance))**2, Grid.x.dx).get() / Grid.x.length
+        return trapz2((fluctuation_field - cp.array(covariance)) ** 2, Grid.x.dx).get() / Grid.x.length
 
     def total_density(self, grid):
         self.inverse_fourier_transform()
@@ -126,7 +127,7 @@ class Distribution:
             sols = np.zeros_like(grid.x.wavenumbers) + 0j
             # guess_r, guess_i = 0.03 / grid.x.fundamental, -0.003 / grid.x.fundamental  # L=1000
             # guess_r, guess_i = 0.02 / grid.x.fundamental, -0.002 / grid.x.fundamental  # L=
-            guess_r, guess_i = 5.5, -23/20
+            guess_r, guess_i = 5.5, -23 / 20
             for idx, wave in enumerate(grid.x.wavenumbers):
                 if idx == 0:
                     continue

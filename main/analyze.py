@@ -7,7 +7,7 @@ import data
 import cupy as cp
 
 # elements and order
-elements, order = [20000, 15], 25  # [5000, 50], 8
+elements, order = [20000, 25], 20  # [5000, 50], 8
 vt = 1
 chi = 0.05
 vb = 5
@@ -37,7 +37,7 @@ delta_of_correlation = np.zeros((time_data.shape[0], elements[0], elements[1], o
 
 # just_some_idx, just_some_time = np.array([1, 5, 10, 15]), np.array([1, 5, 10, 15])
 jump = 0
-for idx, time in enumerate(time_data[jump:-12]):
+for idx, time in enumerate(time_data[jump:]):
     # for iidx, time in enumerate(just_some_time):
     idx += jump
     # idx = just_some_idx[iidx]
@@ -79,14 +79,14 @@ for idx, time in enumerate(time_data[jump:-12]):
     # Plotter.plot_average_distribution(distribution=Distribution)
     # Plotter.show()
 
-Plotter.plot_many_velocity_averages(time_data, avg_dists, y_label='Average distribution')
-Plotter.plot_many_velocity_averages(time_data, covariance,
-                                    y_label=r'Field-particle covariance, $\langle \Delta(f)E\rangle_L$')
-Plotter.plot_many_velocity_averages(time_data, avg_grads, y_label='Gradient of average distribution')
-Plotter.plot_many_velocity_averages(time_data, diff_estimate, y_label='Estimate of diffusion coefficient')
-Plotter.plot_many_velocity_averages(time_data, variance_of_correlation,
-                                    y_label=r'Variance of correlation, $\langle\langle \Delta(f)E\rangle\rangle_L$')
-Plotter.plot_many_field_power_spectra(time_data, field_psd)
+# Plotter.plot_many_velocity_averages(time_data, avg_dists, y_label='Average distribution')
+# Plotter.plot_many_velocity_averages(time_data, covariance,
+#                                     y_label=r'Field-particle covariance, $\langle \Delta(f)E\rangle_L$')
+# Plotter.plot_many_velocity_averages(time_data, avg_grads, y_label='Gradient of average distribution')
+# Plotter.plot_many_velocity_averages(time_data, diff_estimate, y_label='Estimate of diffusion coefficient')
+# Plotter.plot_many_velocity_averages(time_data, variance_of_correlation,
+#                                     y_label=r'Variance of correlation, $\langle\langle \Delta(f)E\rangle\rangle_L$')
+# Plotter.plot_many_field_power_spectra(time_data, field_psd)
 print(total_eng.shape)
 # Plotter.time_series_plot(time_in=time_data, series_in=total_eng,
 #                          y_axis='Total energy', log=False, numpy=True)

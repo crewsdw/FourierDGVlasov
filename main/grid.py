@@ -72,14 +72,15 @@ class VelocityGrid:
         # jacobian
         # self.J = 2.0 / self.dx
         self.J = cp.asarray(2.0 / self.dx_grid)
-        # plt.figure()
+        self.min_dv = cp.amin(self.dx_grid)
+        plt.figure()
         # x = np.linspace(-500, 500, num=5)
         # X, V = np.meshgrid(x, self.arr.flatten(), indexing='ij')
         # plt.plot(X, V, 'ko--')
         # plt.plot(X.T, V.T, 'ko--')
-        # for i in range(self.elements):
-        #     plt.plot(np.zeros_like(self.arr[i, :]), self.arr[i, :], 'ko')
-        # plt.show()
+        for i in range(self.elements):
+            plt.plot(np.zeros_like(self.arr[i, :]), self.arr[i, :], 'ko')
+        plt.show()
 
         # global quad weights
         self.global_quads = cp.tensordot(cp.ones(elements),
@@ -112,8 +113,8 @@ class VelocityGrid:
 
     def stretch_grid(self):
         # Investigate grid mapping
-        alphas, betas = (np.array([0.6, 0.6, 0.6, 0.6]),  # 0.64]),  # , 0.705, 0.705, 0.705, 0.705]),
-                         np.array([0.5, 0.5, 0.5, 0.5]))
+        alphas, betas = (np.array([0.6, 0.6, 0.6, 0.6, 0.6]),  # 0.64]),  # , 0.705, 0.705, 0.705, 0.705]),
+                         np.array([0.5, 0.5, 0.5, 0.5, 0.5]))
         # alphas, betas = (np.array([0.62, 0.62, 0.62, 0.62]),  # , 0.705, 0.705, 0.705, 0.705]),
         #                  np.array([0.5, 0.5, 0.5, 0.5]))  # , 0.6, 0.6, 0.6, 0.6]))
         plt.figure()
@@ -161,6 +162,9 @@ class VelocityGrid:
         for i in range(self.elements):
             self.arr[i, :] = lows[i] + self.dx_grid[i] * np.array(nodes_iso)
             lows[i+1] = self.arr[i, -1]
+        plt.figure()
+        plt.plot(self.arr.flatten(), 'o--')
+        plt.show()
         # send to device
         self.device_arr = cp.asarray(self.arr)
         self.mid_points = np.array([0.5 * (self.arr[i, -1] + self.arr[i, 0]) for i in range(self.elements)])
