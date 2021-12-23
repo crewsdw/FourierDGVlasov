@@ -14,14 +14,15 @@ nonlinear_ssp_rk_switch = {
 
 
 class StepperSingleSpecies:
-    def __init__(self, dt, step, resolutions, order, steps, grid):
+    def __init__(self, dt, step, resolutions, order, steps, grid, nu):
         self.x_res, self.v_res = resolutions
         self.resolutions = resolutions
         self.order = order
         self.dt = dt
         self.step = step
         self.steps = steps
-        self.flux = fx.DGFlux(resolutions=resolutions, order=order, charge_mass=-1.0)
+        # nu = hyperviscosity
+        self.flux = fx.DGFlux(resolutions=resolutions, order=order, charge_mass=-1.0, nu=nu)
         self.flux.initialize_zero_pad(grid=grid)
 
         # RK coefficients

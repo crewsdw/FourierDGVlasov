@@ -2,6 +2,8 @@ import cupy as cp
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+
+
 # from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
@@ -17,8 +19,8 @@ class Plotter:
         self.k = grid.x.wavenumbers / grid.x.fundamental
         self.fundamental = grid.x.fundamental
         # Build structured grid, global spectral
-        self.FX, self.FV = np.meshgrid(grid.x.wavenumbers / grid.x.fundamental, grid.v.arr.flatten(),
-                                     indexing='ij')
+        self.FX, self.FV = np.meshgrid(grid.x.wavenumbers, grid.v.arr.flatten(),
+                                       indexing='ij')  # / grid.x.fundamental
 
     def distribution_contourf(self, distribution, plot_spectrum=True, remove_average=False, max_cb=None, save=None):
         # distribution.average_on_boundaries()
@@ -33,7 +35,7 @@ class Plotter:
         cb = np.linspace(np.amin(distribution.arr_nodal.get()), np.amax(distribution.arr_nodal.get()),
                          num=100)
         if remove_average:
-            cb = cb * 0.25
+            cb = cb * 1  # * 0.25
         if max_cb:
             cb = cb * max_cb / np.amax(cb)
 
@@ -74,7 +76,7 @@ class Plotter:
             if np.amax(field_psd[idx, :]) == 0:
                 continue
             plt.loglog(self.fundamental * self.k.flatten(), field_psd[idx, :], 'o',
-                         label='t={:0.2f}'.format(times[idx]))
+                       label='t={:0.2f}'.format(times[idx]))
         plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel('Field Power Spectral Density')
         plt.legend(loc='best'), plt.grid(True), plt.tight_layout()
 
@@ -95,7 +97,7 @@ class Plotter:
                 plt.plot(self.k.flatten(), np.imag(spectral_arr), 'go', label='imaginary')
                 plt.legend(loc='best')
             if quadratic:
-                plt.plot(self.k.flatten(), np.absolute(spectral_arr)**2.0, 'o')
+                plt.plot(self.k.flatten(), np.absolute(spectral_arr) ** 2.0, 'o')
             plt.xlabel('Modes'), plt.ylabel(y_axis + ' spectrum')
             plt.grid(True), plt.tight_layout()
 

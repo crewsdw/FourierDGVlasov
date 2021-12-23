@@ -31,6 +31,8 @@ class SpaceGrid:
         # print(self.wavenumbers)
         self.device_modes = cp.arange(self.modes)
         self.device_wavenumbers = cp.array(self.wavenumbers)
+        self.device_wavenumbers_fourth = self.device_wavenumbers ** 4.0
+        self.device_wavenumbers_fourth[self.device_wavenumbers < 1] = 0
         self.zero_idx = 0  # int(self.modes)
         # self.two_thirds_low = int((1 * self.modes)//3 + 1)
         # self.two_thirds_high = self.wavenumbers.shape[0] - self.two_thirds_low
@@ -113,36 +115,23 @@ class VelocityGrid:
 
     def stretch_grid(self):
         # Investigate grid mapping
-        alphas, betas = (np.array([0.6, 0.6, 0.6, 0.6, 0.6]),  # 0.64]),  # , 0.705, 0.705, 0.705, 0.705]),
-                         np.array([0.5, 0.5, 0.5, 0.5, 0.5]))
+        # two-stream
+        alphas, betas = (np.array([1]), np.array([1]))
+        # bump-on-tail
+        # alphas, betas = (np.array([0.6, 0.6, 0.6, 0.6, 0.6]),  # 0.64]),  # , 0.705, 0.705, 0.705, 0.705]),
+        #                  np.array([0.5, 0.5, 0.5, 0.5, 0.5]))
         # alphas, betas = (np.array([0.62, 0.62, 0.62, 0.62]),  # , 0.705, 0.705, 0.705, 0.705]),
         #                  np.array([0.5, 0.5, 0.5, 0.5]))  # , 0.6, 0.6, 0.6, 0.6]))
-        plt.figure()
-        plt.plot(self.arr.flatten(), self.iterate_map_asym(self.arr, alphas[:-2], betas[:-2]).flatten(),
-                 'k', label=r'Iteration 1')
-        plt.plot(self.arr.flatten(), self.iterate_map_asym(self.arr, alphas[:-1], betas[:-1]).flatten(),
-                 'k', label=r'Iteration 2')
-        plt.plot(self.arr.flatten(), self.iterate_map_asym(self.arr, alphas, betas).flatten(),
-                 'r', label=r'Iteration 3')
-        # plt.plot(self.arr.flatten(), self.grid_map_asym(self.arr, alpha=0.25, beta=0.5).flatten(),
-        #          'b', label=r'$\alpha=0.25, \beta=0.5$')
-        # plt.plot(self.arr.flatten(), self.grid_map_asym(self.arr, alpha=0.5, beta=0.25).flatten(),
-        #          'g', label=r'$\alpha=0.5, \beta=0.25$')
-        # plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.5]).flatten(),
-        #          'k', label='Iteration 1')
-        # plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.5, 0.5]).flatten(),
-        #          'g', label='Iteration 2')
-        # plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.5, 0.5, 0.9]).flatten(),
-        #          'r', label='Iteration 3')
-        # plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.5, 0.5, 0.9, 0.9, 0.9, 0.9]).flatten(),
-        #          'b', label='Iteration 4')
-        # plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.25, 0.5, 0.8, 0.8, 0.8]).flatten(),
-        #          'k', label='Iteration 5')
-        # plt.plot(self.arr.flatten(), self.iterate_map(self.arr, orders=[0.25, 0.5, 0.8, 0.8, 0.8, 0.8]).flatten(),
-        #          'k', label='Iteration 6')
-        plt.xlabel('Input points'), plt.ylabel('Output points')
-        plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
-        plt.show()
+        # plt.figure()
+        # plt.plot(self.arr.flatten(), self.iterate_map_asym(self.arr, alphas[:-2], betas[:-2]).flatten(),
+        #          'k', label=r'Iteration 1')
+        # plt.plot(self.arr.flatten(), self.iterate_map_asym(self.arr, alphas[:-1], betas[:-1]).flatten(),
+        #          'k', label=r'Iteration 2')
+        # plt.plot(self.arr.flatten(), self.iterate_map_asym(self.arr, alphas, betas).flatten(),
+        #          'r', label=r'Iteration 3')
+        # plt.xlabel('Input points'), plt.ylabel('Output points')
+        # plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+        # plt.show()
         # Map points
         # Map lows and highs
         # orders = [0.4, 0.5, 0.8, 0.8, 0.8]  # , 0.8, 0.8]
@@ -162,9 +151,9 @@ class VelocityGrid:
         for i in range(self.elements):
             self.arr[i, :] = lows[i] + self.dx_grid[i] * np.array(nodes_iso)
             lows[i+1] = self.arr[i, -1]
-        plt.figure()
-        plt.plot(self.arr.flatten(), 'o--')
-        plt.show()
+        # plt.figure()
+        # plt.plot(self.arr.flatten(), 'o--')
+        # plt.show()
         # send to device
         self.device_arr = cp.asarray(self.arr)
         self.mid_points = np.array([0.5 * (self.arr[i, -1] + self.arr[i, 0]) for i in range(self.elements)])

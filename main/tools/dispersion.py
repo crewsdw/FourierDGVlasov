@@ -3,6 +3,7 @@ import scipy.special as sp
 import matplotlib.pyplot as plt
 import scipy.optimize as opt
 import tools.plasma_dispersion as pd
+# import plasma_dispersion as pd
 
 
 def dispersion_function(k, z, drift_one, vt_one, two_scale, drift_two, vt_two):
@@ -101,6 +102,7 @@ if __name__ == '__main__':
     vb = 5
     vtb = chi ** (1 / 3) * vb
     eps = dispersion_function(k, z, drift_one=0, vt_one=1, two_scale=chi, drift_two=vb, vt_two=vtb)
+    eps = dispersion_function(k, z, drift_one=5, vt_one=1, two_scale=1, drift_two=-5, vt_two=1)
     cb = np.linspace(-1, 1, num=100)
 
     # plt.figure()

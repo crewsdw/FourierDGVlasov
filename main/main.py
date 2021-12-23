@@ -7,40 +7,41 @@ import time as timer
 import timestep as ts
 import data
 
-# elements and order
-elements, order = [20000, 25], 20
+# Geometry and grid parameters
+elements, order = [400, 20], 20
 vt = 1
 chi = 0.05
 vb = 5
 vtb = chi ** (1 / 3) * vb
 
-# set up grids
-length = 5000  # 1000
+# Grids
+length = 250  # 5000  # 1000
 lows = np.array([-length / 2, -25 * vt])
 highs = np.array([length / 2, 25 * vt])
 grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 
-# build distribution
+# Build distribution
 Distribution = var.Distribution(resolutions=elements, order=order, charge_mass=-1.0)
-Distribution.initialize_bump_on_tail(grid=grid, vt=vt, u=0, chi=chi, vb=vb, vtb=vtb)
+Distribution.initialize_two_stream(grid=grid, vt1=1, vt2=1, u1=5, u2=-5)
+# Distribution.initialize_bump_on_tail(grid=grid, vt=vt, u=0, chi=chi, vb=vb, vtb=vtb)
 Distribution.fourier_transform(), Distribution.inverse_fourier_transform()
 
-# test elliptic solver
+# Set up elliptic problem
 Elliptic = ell.Elliptic(resolution=elements[0])
 Elliptic.poisson_solve_single_species(distribution=Distribution, grid=grid)
 
 Plotter = my_plt.Plotter(grid=grid)
 # Plotter.distribution_contourf(distribution=Distribution, plot_spectrum=True, remove_average=True)
 # Plotter.spatial_scalar_plot(scalar=Distribution.zero_moment, y_axis='Zero moment electrons')
-Plotter.spatial_scalar_plot(scalar=Elliptic.field, y_axis='Electric field', quadratic=True)
-Plotter.show()
+# Plotter.spatial_scalar_plot(scalar=Elliptic.field, y_axis='Electric field', quadratic=True)
+# Plotter.show()
 
-# A time-stepper
+# Time integration class and stepping information
 t0 = timer.time()
 time = 0
-dt = 1.0e-3  # 4.7e-4
-step = 1.0e-3  # 4.7e-4
-final_time = 50  # 151  # 100  # 100  # 150  # 50
+dt = 2.5e-3  # 4.7e-4
+step = 2.5e-3  # 4.7e-4
+final_time = 30  # 151  # 100  # 100  # 150  # 50
 steps = int(np.abs(final_time // step))
 dt_max_translate = 1.0 / (np.amax(grid.x.wavenumbers) * np.amax(grid.v.arr)) / (2 * order + 1)
 cutoff_velocity = 1.0 / (np.amax(grid.x.wavenumbers) * dt) / (2 * order + 1)
@@ -48,20 +49,20 @@ print('Max dt translation is {:0.3e}'.format(dt_max_translate))
 print('Cutoff velocity at max wavenumber is {:0.3e}'.format(cutoff_velocity))
 
 # Save data
-DataFile = data.Data(folder='..\\bot\\', filename='bot_run' + str(final_time))
+DataFile = data.Data(folder='..\\ts\\', filename='two_stream_test' + str(final_time))
 DataFile.create_file(distribution=Distribution.arr_nodal.get(),
                      density=Distribution.zero_moment.arr_nodal.get(), field=Elliptic.field.arr_nodal.get())
 
 # Set up stepper and execute main loop
 Stepper = ts.StepperSingleSpecies(dt=dt, step=step, resolutions=elements, order=order,
-                                  steps=steps, grid=grid)
+                                  steps=steps, grid=grid, nu=1.0e-1)
 Stepper.main_loop_adams_bashforth(distribution=Distribution,
                                   elliptic=Elliptic, grid=grid, DataFile=DataFile)
 Elliptic.field.inverse_fourier_transform()
 print('Done, it took {:0.3e}'.format(timer.time() - t0))
 
 # Final visualize
-Plotter.distribution_contourf(distribution=Distribution, remove_average=True)
+Plotter.distribution_contourf(distribution=Distribution, remove_average=False)
 
 Plotter.spatial_scalar_plot(scalar=Distribution.zero_moment, y_axis='Density')
 Plotter.spatial_scalar_plot(scalar=Elliptic.field, y_axis='Electric Field')

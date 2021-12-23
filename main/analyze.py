@@ -7,20 +7,20 @@ import data
 import cupy as cp
 
 # elements and order
-elements, order = [20000, 25], 20  # [5000, 50], 8
+elements, order = [400, 20], 20  # [20000, 25], 20  # [5000, 50], 8
 vt = 1
 chi = 0.05
 vb = 5
 vtb = chi ** (1 / 3) * vb
 
 # set up grids
-length = 5000
+length = 250  # 5000
 lows = np.array([-length / 2, -20 * vt])
 highs = np.array([length / 2, 20 * vt])
 Grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 
 # Read data
-DataFile = data.Data(folder='..\\bot\\', filename='bot_run151')
+DataFile = data.Data(folder='..\\ts\\', filename='two_stream_test30')
 time_data, distribution_data, density_data, field_data, total_eng, total_den = DataFile.read_file()
 
 # Set up plotter
@@ -72,21 +72,21 @@ for idx, time in enumerate(time_data[jump:]):
     # diff_estimate[diff_estimate < 0] = 0
     # diff_estimate[diff_estimate > 3] = 0
     # Analyze data
-    Plotter.distribution_contourf(distribution=Distribution, plot_spectrum=False, remove_average=True,
-                                  max_cb=0.005, save='..\\bot_figs\\pdf{:d}'.format(int(time)))
+    Plotter.distribution_contourf(distribution=Distribution, plot_spectrum=False, remove_average=False,
+                                  max_cb=None, save='..\\bot_figs\\pdf{:d}'.format(int(time)))
     # Plotter.distribution_contourf(distribution=DeltaOfCorrelation, plot_spectrum=False, remove_average=False,
     #                               max_cb=None, save='..\\bot_figs\\dropped_term_{:d}'.format(int(time)))
     # Plotter.plot_average_distribution(distribution=Distribution)
     # Plotter.show()
 
-# Plotter.plot_many_velocity_averages(time_data, avg_dists, y_label='Average distribution')
-# Plotter.plot_many_velocity_averages(time_data, covariance,
-#                                     y_label=r'Field-particle covariance, $\langle \Delta(f)E\rangle_L$')
-# Plotter.plot_many_velocity_averages(time_data, avg_grads, y_label='Gradient of average distribution')
-# Plotter.plot_many_velocity_averages(time_data, diff_estimate, y_label='Estimate of diffusion coefficient')
-# Plotter.plot_many_velocity_averages(time_data, variance_of_correlation,
-#                                     y_label=r'Variance of correlation, $\langle\langle \Delta(f)E\rangle\rangle_L$')
-# Plotter.plot_many_field_power_spectra(time_data, field_psd)
+Plotter.plot_many_velocity_averages(time_data, avg_dists, y_label='Average distribution')
+Plotter.plot_many_velocity_averages(time_data, covariance,
+                                    y_label=r'Field-particle covariance, $\langle \Delta(f)E\rangle_L$')
+Plotter.plot_many_velocity_averages(time_data, avg_grads, y_label='Gradient of average distribution')
+Plotter.plot_many_velocity_averages(time_data, diff_estimate, y_label='Estimate of diffusion coefficient')
+Plotter.plot_many_velocity_averages(time_data, variance_of_correlation,
+                                    y_label=r'Variance of correlation, $\langle\langle \Delta(f)E\rangle\rangle_L$')
+Plotter.plot_many_field_power_spectra(time_data, field_psd)
 print(total_eng.shape)
 # Plotter.time_series_plot(time_in=time_data, series_in=total_eng,
 #                          y_axis='Total energy', log=False, numpy=True)

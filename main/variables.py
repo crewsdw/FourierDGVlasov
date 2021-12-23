@@ -112,6 +112,72 @@ class Distribution:
     def spectral_flatten(self):
         return self.arr.reshape(self.arr.shape[0], self.v_res * self.order)
 
+    def initialize_two_stream(self, grid, vt1, vt2, u1, u2, perturbation=True):
+        ix, iv = cp.ones_like(grid.x.device_arr), cp.ones_like(grid.v.device_arr)
+        maxwellian = cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=vt1,
+                                                                drift_velocity=u1), axes=0)
+        bump = cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=vt2,
+                                                          drift_velocity=u2), axes=0)
+        self.arr_nodal = (maxwellian + bump) / (1 + 1)
+        self.fourier_transform()
+
+        # compute perturbation
+        if perturbation:
+            # obtain eigenvalues by solving the dispersion relation
+            sols = np.zeros_like(grid.x.wavenumbers) + 0j
+            guess_r, guess_i = 0, 0.01 / grid.x.wavenumbers[1]
+            for idx, wave in enumerate(grid.x.wavenumbers):
+                # Skip k=0 as the dispersion relation is singular there (unless multiplied by k)
+                if idx == 0:
+                    continue
+                solution = opt.root(dispersion.dispersion_fsolve, x0=np.array([guess_r, guess_i]),
+                                    args=(wave, u1, vt1, 1, u2, vt2), jac=dispersion.jacobian_fsolve, tol=1.0e-15)
+                guess_r, guess_i = solution.x
+                sols[idx] = (guess_r + 1j * guess_i)
+
+            plt.figure()
+            plt.plot(grid.x.wavenumbers[1:], np.real(sols[1:]), 'ro--', label='Real part')
+            plt.plot(grid.x.wavenumbers[1:], np.imag(sols[1:]), 'go--', label=r'Imaginary part')
+            plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Phase velocity $\zeta/v_t$')
+            plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+
+            plt.figure()
+            plt.plot(grid.x.wavenumbers[1:], grid.x.wavenumbers[1:] * np.real(sols[1:]), 'ro--', label='Real part')
+            plt.plot(grid.x.wavenumbers[1:], grid.x.wavenumbers[1:] * np.imag(sols[1:]), 'go--',
+                     label=r'Imaginary part')
+            plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Frequency $\omega/\omega_p$')
+            plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+
+            plt.show()
+
+            df = (grid.v.compute_maxwellian_gradient(thermal_velocity=vt1, drift_velocity=u1) +
+                  grid.v.compute_maxwellian_gradient(thermal_velocity=vt2, drift_velocity=u2)) / (1 + 1)
+
+            def eigenfunction(z, k):
+                pi2 = 2.0 * np.pi
+                return (df / (z - grid.v.device_arr)) / k * cp.exp(1j * pi2 * cp.random.random(1))
+
+            unstable_modes = grid.x.wavenumbers[np.imag(sols) > 0.003]
+            mode_idxs = grid.x.device_modes[np.imag(sols) > 0.003]
+            unstable_eigs = sols[np.imag(sols) > 0.003]
+            largest_growth_rate = cp.amax(np.imag(unstable_eigs) * unstable_modes)
+            # eig_sum, pi2 = 0, 2 * np.pi
+            f1 = cp.zeros_like(self.arr) + 0j
+            for idx in range(unstable_modes.shape[0]):
+                # growth_rate = 1.0e-3 * np.imag(unstable_eigs[idx]) * unstable_modes[idx] / largest_growth_rate
+                growth_rate = 1.0e-3
+                f1[mode_idxs[idx], :, :] = (-self.charge_mass * growth_rate *
+                                            eigenfunction(unstable_eigs[idx], unstable_modes[idx]))
+                # f1[mode_idxs[idx], :, :] += (-self.charge_mass * growth_rate *
+                #                              eigenfunction(-1.0 * unstable_eigs[idx], unstable_modes[idx]))
+
+        else:
+            f1 = 0
+
+        inverse = cp.fft.irfft(f1, axis=0, norm='forward')
+        self.arr_nodal += inverse
+        print('Finished initialization...')
+
     def initialize_bump_on_tail(self, grid, vt, u, chi, vb, vtb, perturbation=True):
         ix, iv = cp.ones_like(grid.x.device_arr), cp.ones_like(grid.v.device_arr)
         maxwellian = cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=vt,

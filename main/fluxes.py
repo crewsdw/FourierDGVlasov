@@ -9,7 +9,7 @@ def basis_product(flux, basis_arr, axis):
 
 
 class DGFlux:
-    def __init__(self, resolutions, order, charge_mass):
+    def __init__(self, resolutions, order, charge_mass, nu):
         self.x_ele, self.v_res = resolutions
         self.x_res = int(self.x_ele // 2 + 1)
         self.order = order
@@ -31,17 +31,14 @@ class DGFlux:
 
         # species dependence
         self.charge = charge_mass
+        self.nu = nu  # hyperviscosity
 
     def semi_discrete_rhs(self, distribution, elliptic, grid):
         """ Computes the semi-discrete equation for velocity flux only """
         # Compute the flux
         self.compute_flux(distribution=distribution, elliptic=elliptic, grid=grid)
         self.output.arr = (grid.v.J[None, :, None] * self.v_flux_lgl(grid=grid, distribution=distribution))  # +
-        #                    self.source_term_lgl(distribution=distribution, grid=grid))
-        # return self.output.arr
-        # if not gl:
-        #     self.output.arr = (grid.v.J * self.v_flux_lgl(grid=grid))
-        # self.output.arr = self.source_term(distribution=distribution, grid=grid)
+        self.output.arr -= self.nu * grid.x.device_wavenumbers_fourth[:, None, None] * distribution.arr
 
     def initialize_zero_pad(self, grid):
         self.pad_field = cp.zeros((grid.x.modes + grid.x.pad_width)) + 0j
