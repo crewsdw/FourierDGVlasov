@@ -3,6 +3,7 @@ import cupy as cp
 import basis as b
 import tools.plasma_dispersion as pd
 import matplotlib.pyplot as plt
+import scipy.special as sp
 
 
 class SpaceGrid:
@@ -32,7 +33,7 @@ class SpaceGrid:
         self.device_modes = cp.arange(self.modes)
         self.device_wavenumbers = cp.array(self.wavenumbers)
         self.device_wavenumbers_fourth = self.device_wavenumbers ** 4.0
-        self.device_wavenumbers_fourth[self.device_wavenumbers < 1] = 0
+        self.device_wavenumbers_fourth[self.device_wavenumbers < 0.5] = 0  # 1
         self.zero_idx = 0  # int(self.modes)
         # self.two_thirds_low = int((1 * self.modes)//3 + 1)
         # self.two_thirds_high = self.wavenumbers.shape[0] - self.two_thirds_low
@@ -54,7 +55,8 @@ class VelocityGrid:
         self.low, self.high = low, high
         self.elements, self.order = elements, order
         self.local_basis = b.LGLBasis1D(order=self.order)
-        # self.local_basis = b.GLBasis1D(order=self.order)
+
+        self.element_idxs = np.arange(self.elements)
 
         # domain and element widths
         self.length = self.high - self.low
@@ -68,18 +70,19 @@ class VelocityGrid:
         # stretch / transform elements
         self.pole_distance = 5
         self.dx_grid = None
-        self.stretch_grid()
-        self.modes = 2.0 * np.pi * np.arange(1-int(2*self.elements), int(2*self.elements)) / self.length
+        # self.stretch_grid()
+        # self.create_triple_grid(lows=np.array([self.low, -5, 12]),
+        #                         highs=np.array([-5, 12, self.high]),
+        #                         elements=np.array([8, 20, 2]))
+        self.create_pentic_grid(lows=np.array([self.low, -5, 3, 8, 12]),
+                                highs=np.array([-5, 3, 8, 12, self.high]),
+                                elements=np.array([5, 5, 30, 5, 5]))
 
         # jacobian
-        # self.J = 2.0 / self.dx
         self.J = cp.asarray(2.0 / self.dx_grid)
+        self.J_host = self.J.get()
         self.min_dv = cp.amin(self.dx_grid)
         plt.figure()
-        # x = np.linspace(-500, 500, num=5)
-        # X, V = np.meshgrid(x, self.arr.flatten(), indexing='ij')
-        # plt.plot(X, V, 'ko--')
-        # plt.plot(X.T, V.T, 'ko--')
         for i in range(self.elements):
             plt.plot(np.zeros_like(self.arr[i, :]), self.arr[i, :], 'ko')
         plt.show()
@@ -95,9 +98,61 @@ class VelocityGrid:
                                              self.J[:, None, None].get())
 
         # quad matrix
+        self.modes = 2.0 * np.pi / self.length * np.arange(int(2 * self.elements))  # only positive frequencies
         self.fourier_quads = (self.local_basis.weights[None, None, :] *
                               np.exp(-1j*self.modes[:, None, None]*self.arr[None, :, :]) /
                               self.J[None, :, None].get()) / self.length
+        self.grid_phases = np.exp(1j * self.modes[None, None, :] * self.arr[:, :, None])
+
+    def create_triple_grid(self, lows, highs, elements):
+        """ Build a three-segment grid, each evenly-spaced """
+        # translate to [0, 1]
+        nodes_iso = (np.array(self.local_basis.nodes) + 1) / 2
+        # element left boundaries (including ghost elements)
+        dxs = (highs - lows) / elements
+        xl0 = np.linspace(lows[0], highs[0] - dxs[0], num=elements[0])
+        xl1 = np.linspace(lows[1], highs[1] - dxs[1], num=elements[1])
+        xl2 = np.linspace(lows[2], highs[2] - dxs[2], num=elements[2])
+        # construct coordinates
+        self.arr = np.zeros((elements[0] + elements[1] + elements[2], self.order))
+        for i in range(elements[0]):
+            self.arr[i, :] = xl0[i] + dxs[0] * nodes_iso
+        for i in range(elements[1]):
+            self.arr[elements[0] + i, :] = xl1[i] + dxs[1] * nodes_iso
+        for i in range(elements[2]):
+            self.arr[elements[0] + elements[1] + i, :] = xl2[i] + dxs[2] * nodes_iso
+        # send to device
+        self.device_arr = cp.asarray(self.arr)
+        self.mid_points = np.array([0.5 * (self.arr[i, -1] + self.arr[i, 0]) for i in range(self.elements)])
+        self.dx_grid = self.device_arr[:, -1] - self.device_arr[:, 0]
+
+    def create_pentic_grid(self, lows, highs, elements):
+        """ Build a five-segment grid, each evenly-spaced """
+        # translate to [0, 1]
+        nodes_iso = (np.array(self.local_basis.nodes) + 1) / 2
+        # element left boundaries (including ghost elements)
+        dxs = (highs - lows) / elements
+        xl0 = np.linspace(lows[0], highs[0] - dxs[0], num=elements[0])
+        xl1 = np.linspace(lows[1], highs[1] - dxs[1], num=elements[1])
+        xl2 = np.linspace(lows[2], highs[2] - dxs[2], num=elements[2])
+        xl3 = np.linspace(lows[3], highs[3] - dxs[3], num=elements[3])
+        xl4 = np.linspace(lows[4], highs[4] - dxs[4], num=elements[4])
+        # construct coordinates
+        self.arr = np.zeros((elements[0] + elements[1] + elements[2] + elements[3] + elements[4], self.order))
+        for i in range(elements[0]):
+            self.arr[i, :] = xl0[i] + dxs[0] * nodes_iso
+        for i in range(elements[1]):
+            self.arr[elements[0] + i, :] = xl1[i] + dxs[1] * nodes_iso
+        for i in range(elements[2]):
+            self.arr[elements[0] + elements[1] + i, :] = xl2[i] + dxs[2] * nodes_iso
+        for i in range(elements[3]):
+            self.arr[elements[0] + elements[1] + elements[2] + i, :] = xl3[i] + dxs[3] * nodes_iso
+        for i in range(elements[4]):
+            self.arr[elements[0] + elements[1] + elements[2] + elements[3] + i, :] = xl4[i] + dxs[4] * nodes_iso
+        # send to device
+        self.device_arr = cp.asarray(self.arr)
+        self.mid_points = np.array([0.5 * (self.arr[i, -1] + self.arr[i, 0]) for i in range(self.elements)])
+        self.dx_grid = self.device_arr[:, -1] - self.device_arr[:, 0]
 
     def create_even_grid(self):
         """ Build global grid """
@@ -175,16 +230,32 @@ class VelocityGrid:
     def grid_map(self, points, order):
         return (self.low * ((self.high - points) / self.length) ** order +
                 self.high * ((points - self.low) / self.length) ** order)
-        # return (self.low * ((points - self.high) / self.length) ** order * ((points-5) / (self.low-5)) +
-        #         5 * ((points-self.high) / (self.high - 5)) ** order * ((points-self.low) / (self.low - 5)) ** order +
-        #         self.high * ((points - self.low) / self.length) ** order * ((points-5) / (self.high-5)))
-        # return self.pole_distance * ((self.length + self.pole_distance) / (
-        #         (points - (self.high + self.pole_distance)) *
-        #         (self.low - self.pole_distance - points)))
 
-    # def grid_map_jacobian(self, points, order):
-    #     return self.grid_map(points, order) * (1 / (points - (self.low - self.pole_distance)) +
-    #                                     1 / (points - (self.high + self.pole_distance)))
+    def get_local_velocity(self, phase_velocity):
+        # find out which element the phase velocity is in
+        idx = self.element_idxs[(self.arr[:, 0] < np.real(phase_velocity)) &
+                                (np.real(phase_velocity) <= self.arr[:, -1])]
+
+        # get local velocity
+        velocity = self.J_host[idx] * (phase_velocity - self.mid_points[idx])
+
+        return idx, velocity
+
+    def get_interpolant_on_point(self, velocity):
+        # get interpolation polynomial on point
+        vandermonde_on_point = np.array([sp.legendre(s)(velocity)
+                                         for s in range(self.order)])
+        interpolant_on_point = np.tensordot(self.local_basis.inv_vandermonde,
+                                            vandermonde_on_point, axes=([0], [0]))
+        return interpolant_on_point
+
+    def get_interpolant_grad_on_point(self, velocity):
+        # get interpolation polynomial on point
+        vandermonde_grad_on_point = np.array([sp.legendre(s).deriv()(velocity)
+                                              for s in range(self.order)])
+        interpolant_grad_on_point = np.tensordot(self.local_basis.inv_vandermonde,
+                                                 vandermonde_grad_on_point, axes=([0], [0]))
+        return interpolant_grad_on_point
 
     def zero_moment(self, function, idx):
         return cp.tensordot(self.global_quads / self.J[:, None], function, axes=([0, 1], idx))  # / self.J

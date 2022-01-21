@@ -3,7 +3,9 @@ import cupy as cp
 import tools.dispersion as dispersion
 import scipy.optimize as opt
 import cupyx.scipy.signal as sig
+import scipy.signal as ssig
 import matplotlib.pyplot as plt
+import dielectric
 from copy import deepcopy
 
 cp.random.seed(1111)
@@ -34,11 +36,18 @@ class SpaceScalar:
         return trapz(arr_add, grid.x.dx)
 
     def compute_wigner_distribution(self, grid):
-        # Zero-pad
         spectrum = cp.fft.fftshift(cp.fft.fft(self.arr_nodal))
+        full_wavenumbers = 2 * np.pi * cp.fft.fftshift(cp.fft.fftfreq(self.arr_nodal.shape[0], d=grid.x.dx))
         fourier_functions = (spectrum[None, :] *
-                             cp.exp(1j * grid.x.device_wavenumbers[None, :] * grid.x.device_arr[:, None]))
-        return sig.fftconvolve(cp.conj(fourier_functions), fourier_functions, mode='same', axes=1)
+                             cp.exp(1j * full_wavenumbers[None, :] * grid.x.device_arr[:, None]))
+        return sig.fftconvolve(cp.conj(fourier_functions), fourier_functions, mode='same', axes=1), full_wavenumbers
+
+    def compute_hilbert(self, vt_shift, grid):
+        # Compute hilbert transform of data with a phase shift
+        self.fourier_transform()
+        self.arr_spectral = cp.multiply(self.arr_spectral, cp.exp(-1j * grid.x.device_wavenumbers * vt_shift))
+        self.inverse_fourier_transform()
+        return ssig.hilbert(self.arr_nodal.get())
 
 
 class Distribution:
@@ -68,12 +77,6 @@ class Distribution:
 
     def average_distribution(self, grid):
         self.avg_dist = np.real(self.arr[0, :].get())
-        # spectrum = np.tensordot(grid.v.fourier_quads, self.avg_dist, axes=([1, 2], [0, 1]))
-        # deriv = 1j * grid.v.modes * spectrum
-        # self.avg_dist = np.sum(spectrum[:, None, None] *
-        #               np.exp(1j * grid.v.modes[:, None, None] * grid.v.arr[None, :, :]), axis=0)
-        # self.inverse_fourier_transform()
-        # self.avg_dist = trapz2(self.arr_nodal, grid.x.dx).get()
 
     def average_on_boundaries(self):
         self.arr[:, :, 0], self.arr[:, :, -1] = (
@@ -84,12 +87,6 @@ class Distribution:
         self.delta_f = self.arr_nodal.get() - self.avg_dist[None, :, :]
 
     def compute_average_gradient(self, grid):
-        # print(grid.v.fourier_quads.shape)
-        # print(self.avg_dist.shape)
-        # spectrum = np.tensordot(grid.v.fourier_quads, self.avg_dist, axes=([1, 2], [0, 1]))
-        # deriv = 1j * grid.v.modes * spectrum
-        # return np.sum(deriv[:, None, None] *
-        #               np.exp(1j * grid.v.modes[:, None, None] * grid.v.arr[None, :, :]), axis=0)
         return np.tensordot(self.avg_dist,
                             grid.v.local_basis.derivative_matrix, axes=([1], [0])) * grid.v.J[:, None].get()
 
@@ -125,7 +122,7 @@ class Distribution:
         if perturbation:
             # obtain eigenvalues by solving the dispersion relation
             sols = np.zeros_like(grid.x.wavenumbers) + 0j
-            guess_r, guess_i = 0, 0.01 / grid.x.wavenumbers[1]
+            guess_r, guess_i = 0, 0.0001 / grid.x.wavenumbers[1]
             for idx, wave in enumerate(grid.x.wavenumbers):
                 # Skip k=0 as the dispersion relation is singular there (unless multiplied by k)
                 if idx == 0:
@@ -202,11 +199,55 @@ class Distribution:
                 guess_r, guess_i = solution.x
                 sols[idx] = (guess_r + 1j * guess_i)
 
+            # Approximate solution
+            ensemble_average = Scalar(resolution=grid.v.elements, order=grid.v.order)
+            ensemble_average.arr = self.arr_nodal[0, :, :].get()
+            # Compute dielectric function solution
+            grid_k = grid.x.wavenumbers[(0.14 <= grid.x.wavenumbers) & (grid.x.wavenumbers <= 0.4)]
+            approx_zetar, approx_zetai = dielectric.solve_approximate_dielectric_function(distribution=ensemble_average,
+                                                                                          grid_v=grid.v, grid_k=grid_k)
+            approx_om = approx_zetar * grid_k
+            approx_im = approx_zetai * grid_k
+
+            dk = grid.x.wavenumbers[1] - grid.x.wavenumbers[0]
+            zeta = np.real(sols[1:] * grid.x.wavenumbers[1:])
+            group_vel = np.zeros_like(zeta)
+            group_vel[1:-1] = (zeta[2:] - zeta[:-2]) / (2 * dk)
+            group_vel[0] = (zeta[1] - zeta[0]) / dk
+            group_vel[-1] = (zeta[-1] - zeta[-2]) / dk
+
             plt.figure()
-            plt.plot(grid.x.wavenumbers[1:], np.real(sols[1:]), 'ro--', label='Real part')
-            plt.plot(grid.x.wavenumbers[1:], 20 * np.imag(sols[1:]), 'go--', label=r'Imaginary part, $\times 20$')
-            plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Phase velocity $\zeta/v_t$')
+            plt.plot(grid.x.wavenumbers[1:], np.real(sols[1:]), 'r', label=r'$Re(\zeta)$', linewidth=3)
+            plt.plot(grid.x.wavenumbers[1:], group_vel, 'b', label=r'Group velocity', linewidth=3)
+            plt.plot(grid.x.wavenumbers[1:], np.imag(sols[1:]), 'g', label=r'Im($\zeta$)',
+                     linewidth=3)
+            # plt.plot(grid_k, approx_zetar, 'bo--', label='Approximate real part')
+            # plt.plot(grid_k, 20 * approx_zetai, 'ko--', label=r'Approximate imaginary part $\times 20$')
+            plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Velocity $v/v_t$')
             plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+
+            om = np.real(sols[1:]) * grid.x.wavenumbers[1:]
+            im = np.imag(sols[1:]) * grid.x.wavenumbers[1:]
+            imom = im / om
+
+            plt.figure()
+            plt.plot(grid.x.wavenumbers[1:], om, 'r', label='True real part', linewidth=3)
+            plt.plot(grid_k, approx_om, 'b', label='Approximate real part', linewidth=3)
+            plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Frequency $\omega/\omega_p$')
+            plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+
+            plt.figure()
+            plt.plot(grid.x.wavenumbers[1:], im, 'g', label='True imaginary part', linewidth=3)
+            plt.plot(grid_k, approx_im, 'k', label='Approximate imaginary part', linewidth=3)
+            plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Frequency $\omega/\omega_p$')
+            plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+
+            plt.figure()
+            plt.plot(grid.x.wavenumbers[1:], om, 'r', label=r'Local frequency $\omega_r$', linewidth=3)
+            plt.plot(grid.x.wavenumbers[1:], im, 'g', label=r'Growth rate $\omega_i$', linewidth=3)
+            plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Frequency $\omega/\omega_p$')
+            plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+
             plt.show()
 
             # Build eigenfunction
@@ -260,6 +301,46 @@ def trapz(y, dx):
 
 def trapz2(y, dx):
     return cp.sum(y[:-1, :] + y[1:, :], axis=0) * dx / 2.0
+
+
+class Scalar:
+    def __init__(self, resolution, order):
+        self.res = resolution
+        self.order = order
+
+        # arrays
+        self.arr, self.grad = None, None
+        self.grad2 = None
+        self.arr_spectral, self.grad_spectral = None, None
+
+    def compute_grad(self, grid):
+        self.grad = cp.tensordot(self.arr,
+                                 grid.local_basis.derivative_matrix, axes=([1], [0])) * grid.J[:, None]
+
+    def compute_second_grad(self, grid):
+        self.grad2 = cp.tensordot(self.grad,
+                                  grid.local_basis.derivative_matrix, axes=([1], [0])) * grid.J[:, None]
+
+    def fourier_transform(self, grid):
+        self.arr_spectral = np.tensordot(self.arr, grid.fourier_quads, axes=([0, 1], [1, 2]))
+
+    def fourier_grad(self, grid):
+        # self.grad_spectral = np.tensordot(self.grad, grid.fourier_quads, axes=([0, 1], [1, 2]))
+        self.grad_spectral = 1j * grid.modes * self.arr_spectral
+
+    def hilbert_transform_grad(self, grid):
+        analytic = cp.sum(2.0 * self.grad_spectral[None, None, :] * grid.grid_phases, axis=2)
+        pv_integral = -1.0 * cp.pi * cp.imag(analytic)
+
+        return pv_integral
+
+    def zero_moment(self, grid):
+        return cp.tensordot(self.arr,
+                            grid.global_quads / grid.J[:, None], axes=([0, 1], [0, 1]))
+
+    def second_moment(self, grid):
+        return cp.tensordot(self.arr * (0.5 * grid.device_arr ** 2.0),
+                            grid.global_quads / grid.J[:, None], axes=([0, 1], [0, 1]))
 
 # grid
 #             om_r = np.linspace(-0.1, 0.1, num=500)

@@ -43,11 +43,21 @@ class StepperSingleSpecies:
         self.build_advection_matrix(grid=grid)
 
         # save-times
-        self.save_times = np.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 0, 0])
+        # self.save_times = np.array([10, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 130, 140, 150, 0, 0])
+        # self.save_times = np.array([140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 160, 160, 160, 160, 0, 0])
+        # self.save_times = np.array([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 0])
+        # self.save_times = np.array([0, 10, 20, 30, 40, 50, 0])
+        # self.save_times = np.array([72, 77, 82, 87, 92, 0])
+        # self.save_times = np.append(np.linspace(100, 140, num=40), 0)
+        # self.save_times = np.append(np.linspace(25, 75, num=250), 0)
+        # self.save_times = np.append(np.linspace(140, 170, num=301), 0)
+        # self.save_times = np.array([10, 20, 30, 40, 50, 0])
+        # self.save_times = np.array([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 0])
+        self.save_times = np.array([50, 60, 70, 80, 90, 0])
 
     def main_loop_adams_bashforth(self, distribution, elliptic, grid, DataFile):  # , plotter, plot=True):
         """
-            Evolve the Vlasov equation in wavenumber space using the Adams-Bashforth time integration scheme
+        Evolve the Vlasov equation in wavenumber space using the Adams-Bashforth time integration scheme
         """
         print('Beginning main loop')
         # self.steps = 2
@@ -75,7 +85,7 @@ class StepperSingleSpecies:
             previous_fluxes = self.adams_bashforth(distribution=distribution,
                                                    elliptic=elliptic, grid=grid, prev_fluxes=previous_fluxes)
             # experiment: enforce continuity on boundaries... a problem?
-            distribution.average_on_boundaries()
+            # distribution.average_on_boundaries()
             self.time += self.step
             # print('Took a step')
 
@@ -103,7 +113,7 @@ class StepperSingleSpecies:
                 save_counter += 1
 
     def ssp_rk3(self, distribution, elliptic, grid):
-        # Cut-off
+        # Cut-off (avoid CFL advection instability as this is fully explicit)
         cutoff = 500
         # Stage set-up
         stage0 = var.Distribution(resolutions=self.resolutions, order=self.order, charge_mass=None)
