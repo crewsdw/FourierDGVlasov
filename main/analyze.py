@@ -170,7 +170,7 @@ relax_time[:, -5:, :] = 0
 Plotter.plot_many_velocity_averages(time_data, relax_time, y_label=r'Relaxation frequency $\tau_r^{-1}$')
 Plotter.plot_many_velocity_averages(time_data, np.log(avg_dists), y_label=r'Average distribution $\langle f\rangle_L$')
 Plotter.plot_many_velocity_averages(time_data, covariance,
-                                    y_label=r'Field-particle covariance, $\langle f_1 E\rangle_L$')
+                                    y_label=r'Field-particle covariance, $\langle\delta f E\rangle_L$')
 Plotter.plot_many_velocity_averages(time_data, avg_grads, y_label='Gradient of average distribution')
 Plotter.plot_many_velocity_averages(time_data, diff_estimate, y_label=r'DNS diffusivity $D(v)$')
 Plotter.plot_many_velocity_averages(time_data, variance_of_correlation,

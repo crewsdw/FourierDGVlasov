@@ -19,6 +19,8 @@ class DGFlux:
                                 (slice(self.x_res), slice(self.v_res), -1)]
         self.boundary_slices_pad = [(slice(self.x_res), slice(self.v_res + 2), 0),
                                     (slice(self.x_res), slice(self.v_res + 2), -1)]
+        self.boundary_slices_pad = [(slice(self.x_res), slice(self.v_res + 2), 0),
+                                    (slice(self.x_res), slice(self.v_res + 2), -1)]
         # self.flux_slice = [(slice(resolution), slice(order))]  # not necessary
         self.num_flux_size = (self.x_res, self.v_res, 2)
 
@@ -36,8 +38,10 @@ class DGFlux:
     def semi_discrete_rhs(self, distribution, elliptic, grid):
         """ Computes the semi-discrete equation for velocity flux only """
         # Compute the flux
-        self.compute_flux(distribution=distribution, elliptic=elliptic, grid=grid)
-        self.output.arr = (grid.v.J[None, :, None] * self.v_flux_lgl(grid=grid, distribution=distribution))  # +
+        num_flux = self.compute_flux(distribution=distribution, elliptic=elliptic, grid=grid)
+        self.output.arr = (grid.v.J[None, :, None] * self.v_flux_lgl(grid=grid,
+                                                                     distribution=distribution,
+                                                                     num_flux=num_flux))  # +
         self.output.arr -= self.nu * grid.x.device_wavenumbers_fourth[:, None, None] * distribution.arr
 
     def initialize_zero_pad(self, grid):
@@ -57,21 +61,66 @@ class DGFlux:
         distr_nodal = cp.fft.irfft(self.pad_spectrum, norm='forward', axis=0)
         nodal_flux = self.charge * cp.multiply(field_nodal[:, None, None], distr_nodal)
 
+        # Compute upwind numerical flux
+        num_flux = self.nodal_upwind_flux(flux=nodal_flux, field=self.charge * field_nodal)
+
         # Transform back
         # self.flux.arr = cp.fft.fftshift(cp.fft.fft(
         #     nodal_flux, axis=0, norm='forward'), axes=0
         # )[grid.x.pad_width:-grid.x.pad_width, :, :]
         self.flux.arr = cp.fft.rfft(nodal_flux, norm='forward', axis=0)[:-grid.x.pad_width, :, :]
 
+        return cp.fft.rfft(num_flux, norm='forward', axis=0)[:-grid.x.pad_width, :, :]
         # No zero-pad
         # elliptic.field.inverse_fourier_transform()
         # distribution.inverse_fourier_transform()
         # nodal_flux = self.charge * cp.multiply(elliptic.field.arr_nodal[:, None, None], distribution.arr_nodal)
         # self.flux.arr = cp.fft.rfft(nodal_flux, norm='forward', axis=0)
 
-    def v_flux_lgl(self, grid, distribution):
+    def nodal_upwind_flux(self, flux, field):
+        # Allocate
+        # num_flux = cp.zeros(self.num_flux_size) + 0j
+        num_flux = cp.zeros((flux.shape[0], self.v_res, 2))
+
+        # Alternative:
+        one_negatives = cp.where(condition=field < 0, x=1, y=0)
+        one_positives = cp.where(condition=field >= 0, x=1, y=0)
+
+        # set padded flux
+        padded_flux = cp.zeros((num_flux.shape[0], self.v_res + 2, self.order))  # + 0j
+        padded_flux[:, 1:-1, :] = flux  # self.flux.arr
+        padded_flux[:, 0, -1] = 0.0  # -self.flux.arr[:, 0, 0]
+        padded_flux[:, -1, 0] = 0.0  # -self.flux.arr[:, -1, 0]
+
+        self.boundary_slices = [(slice(num_flux.shape[0]), slice(self.v_res), 0),
+                                (slice(num_flux.shape[0]), slice(self.v_res), -1)]
+        self.boundary_slices_pad = [(slice(num_flux.shape[0]), slice(self.v_res + 2), 0),
+                                    (slice(num_flux.shape[0]), slice(self.v_res + 2), -1)]
+
+        # Upwind flux, left face
+        num_flux[self.boundary_slices[0]] = -1.0 * (cp.multiply(cp.roll(padded_flux[self.boundary_slices_pad[1]],
+                                                                        shift=+1,
+                                                                        axis=1)[:, 1:-1],
+                                                                one_positives[:, None]) +
+                                                    cp.multiply(padded_flux[self.boundary_slices_pad[0]][:, 1:-1],
+                                                                one_negatives[:, None]))
+        # Upwind fluxes, right face
+        num_flux[self.boundary_slices[1]] = (cp.multiply(padded_flux[self.boundary_slices_pad[1]][:, 1:-1],
+                                                         one_positives[:, None]) +
+                                             cp.multiply(cp.roll(padded_flux[self.boundary_slices_pad[0]],
+                                                                 shift=-1,
+                                                                 axis=1)[:, 1:-1],
+                                                         one_negatives[:, None]))
+
+        return num_flux
+
+    def v_flux_lgl(self, grid, distribution, num_flux):
+        # return (basis_product(flux=self.flux.arr, basis_arr=grid.v.local_basis.internal, axis=2) -
+        #         self.numerical_flux_lgl(grid=grid, distribution=distribution))
+        # print(num_flux.shape)
+        # print(grid.v.local_basis.numerical.shape)
         return (basis_product(flux=self.flux.arr, basis_arr=grid.v.local_basis.internal, axis=2) -
-                self.numerical_flux_lgl(grid=grid, distribution=distribution))
+                basis_product(flux=num_flux, basis_arr=grid.v.local_basis.numerical, axis=2))
 
     def numerical_flux_lgl(self, distribution, grid):
         # Allocate
@@ -92,18 +141,33 @@ class DGFlux:
                                              self.flux.arr[self.boundary_slices[1]]) / 2.0
 
         # re-use padded_flux array for padded_distribution
+        constant = cp.amax(cp.array([padded_flux[:, :-1, -1], padded_flux[:, 1:, 0]]), axis=0)
+        # print(cp.amax(constant))
+        # quit()
         padded_flux[:, 1:-1, :] = distribution.arr
-        constant = cp.amax(cp.absolute(self.flux.arr))
+        # constant = cp.amax(cp.absolute(distribution.arr), axis=2)
+        # constant = cp.amax(cp.absolute(self.flux.arr), axis=2)
+        # constant = cp.amax(cp.absolute(padded_flux[:, 1:-1, :]), axis=2)
+        # print(constant.shape)
+        # quit()
 
         # Lax-Friedrichs flux
-        num_flux[self.boundary_slices[0]] += -1.0 * cp.multiply(constant,
-                                                         (cp.roll(padded_flux[self.boundary_slices_pad[1]],
-                                                            shift=+1, axis=1)[:, 1:-1] -
-                                                          distribution.arr[self.boundary_slices[0]]) / 2.0)
-        num_flux[self.boundary_slices[1]] += -1.0 * cp.multiply(constant,
-                                                         (cp.roll(padded_flux[self.boundary_slices_pad[0]],
-                                                            shift=-1, axis=1)[:, 1:-1] -
-                                                          distribution.arr[self.boundary_slices[1]]) / 2.0)
+        num_flux[self.boundary_slices[0]] += 1.0 * cp.multiply(constant[:, :-1],
+                                                               (cp.roll(padded_flux[self.boundary_slices_pad[1]],
+                                                                        shift=+1, axis=1)[:, 1:-1] -
+                                                                distribution.arr[self.boundary_slices[0]]) / 2.0)
+        num_flux[self.boundary_slices[1]] += -1.0 * cp.multiply(constant[:, 1:],
+                                                                (cp.roll(padded_flux[self.boundary_slices_pad[0]],
+                                                                         shift=-1, axis=1)[:, 1:-1] -
+                                                                 distribution.arr[self.boundary_slices[1]]) / 2.0)
+        # num_flux[self.boundary_slices[0]] += -1.0 * cp.multiply(constant,
+        #                                                  (cp.roll(padded_flux[self.boundary_slices_pad[1]],
+        #                                                     shift=+1, axis=1)[:, 1:-1] -
+        #                                                   distribution.arr[self.boundary_slices[0]]) / 2.0)
+        # num_flux[self.boundary_slices[1]] += -1.0 * cp.multiply(constant,
+        #                                                  (cp.roll(padded_flux[self.boundary_slices_pad[0]],
+        #                                                     shift=-1, axis=1)[:, 1:-1] -
+        #                                                   distribution.arr[self.boundary_slices[1]]) / 2.0)
 
         return basis_product(flux=num_flux, basis_arr=grid.v.local_basis.numerical, axis=2)
 

@@ -76,6 +76,9 @@ class StepperSingleSpecies:
         self.flux.semi_discrete_rhs(distribution=distribution, elliptic=elliptic, grid=grid)
         flux1 = self.flux.output.arr
 
+        # second stage
+        self.ssp_rk3(distribution=distribution, elliptic=elliptic, grid=grid)
+
         # store first two fluxes
         previous_fluxes = [flux1, flux0]
 
@@ -90,7 +93,7 @@ class StepperSingleSpecies:
             # print('Took a step')
 
             # Check out noise levels. Note: Incorrect to naively adapt time-step for adams-bashforth method
-            if i % 100 == 0:
+            if i % 50 == 0:
                 self.time_array = np.append(self.time_array, self.time)
                 elliptic.poisson_solve_single_species(distribution=distribution, grid=grid)
                 self.field_energy = np.append(self.field_energy, elliptic.compute_field_energy(grid=grid))
@@ -102,7 +105,7 @@ class StepperSingleSpecies:
                 elliptic.field.inverse_fourier_transform()
                 max_field = cp.amax(elliptic.field.arr_nodal)
                 max_dt = grid.v.min_dv / max_field / (2 * self.order + 1) / (2 * np.pi) * 0.01
-                print('Took 100 steps, time is {:0.3e}'.format(self.time))
+                print('Took 50 steps, time is {:0.3e}'.format(self.time))
                 # print('Max velocity-flux dt is {:0.3e}'.format(max_dt))
 
             if np.abs(self.time - self.save_times[save_counter]) < 6.0e-3:

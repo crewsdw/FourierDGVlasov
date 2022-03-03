@@ -114,11 +114,11 @@ class Plotter:
             cb = cb * max_cb / np.amax(cb)
 
         plt.figure(figsize=(10, 5))
-        # plt.contourf(self.X, self.V, distribution.grid_flatten().get(), cb, cmap=self.colormap, extend='both')
-        plt.pcolormesh(self.X, self.V, distribution.grid_flatten().get(),
-                       shading='gouraud', vmin=cb[0], vmax=cb[-1], rasterized=True)
+        plt.contourf(self.X, self.V, distribution.grid_flatten().get(), cb, cmap=self.colormap, extend='both')
+        # plt.pcolormesh(self.X, self.V, distribution.grid_flatten().get(),
+        #                shading='gouraud', vmin=cb[0], vmax=cb[-1], rasterized=True)
         plt.xlabel(r'Position $x/\lambda_D$', ), plt.ylabel(r'Velocity $v/v_t$'), plt.colorbar()
-        plt.xlim([-500, 500]), plt.ylim([-4, 10])
+        # plt.xlim([-500, 500]), plt.ylim([-4, 10])
         plt.tight_layout()
         if save:
             plt.savefig(save + '.jpg', dpi=1000)
@@ -127,11 +127,11 @@ class Plotter:
             spectrum_to_plot = distribution.spectral_flatten()
             spectrum_to_plot[self.grid.x.zero_idx, :] = 0.0
             spectrum = np.log(1.0 + np.absolute(spectrum_to_plot.get()))
-            cb_s = np.linspace(np.amin(spectrum), 0.01 * np.amax(spectrum), num=100)
+            cb_s = np.linspace(np.amin(spectrum), 0.15 * np.amax(spectrum), num=100)
 
             plt.figure()
-            # plt.contourf(self.FX, self.FV, spectrum, cb_s, extend='both')  # , cmap=self.colormap)
-            plt.pcolormesh(self.FX, self.FV, spectrum, shading='gouraud', vmin=cb_s[0], vmax=cb_s[-1], rasterized=True)
+            plt.contourf(self.FX, self.FV, spectrum, cb_s, extend='both')  # , cmap=self.colormap)
+            # plt.pcolormesh(self.FX, self.FV, spectrum, shading='gouraud', vmin=cb_s[0], vmax=cb_s[-1], rasterized=True)
             plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Velocity $v/v_t$'), plt.colorbar(), plt.tight_layout()
 
     def plot_average_distribution(self, distribution):
@@ -219,9 +219,9 @@ class Plotter:
 
         plt.figure()
         plt.plot(self.x.flatten(), scalar.arr_nodal.flatten().get(), 'o--')
-        plt.plot(self.x, hilbert, 'o--')
+        # plt.plot(self.x, hilbert, 'o--')
         plt.xlabel('x'), plt.ylabel(y_axis)
-        plt.xlim([0, 500]), plt.ylim([-0.25, 0.25])
+        # plt.xlim([0, 500]), plt.ylim([-0.25, 0.25])
         if title is not None:
             plt.title('Time is ' + title)
         plt.grid(True), plt.tight_layout()

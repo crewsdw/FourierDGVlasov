@@ -109,13 +109,67 @@ class Distribution:
     def spectral_flatten(self):
         return self.arr.reshape(self.arr.shape[0], self.v_res * self.order)
 
+    def initialize_eigenmode_two_stream(self, grid, vt1, vt2, u1, u2, perturbation=True):
+        ix, iv = cp.ones_like(grid.x.device_arr), cp.ones_like(grid.v.device_arr)
+        maxwellian = cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=vt1,
+                                                                drift_velocity=u1), axes=0)
+        bump = cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=vt2,
+                                                          drift_velocity=u2), axes=0)
+        self.arr_nodal = (maxwellian + bump) / 2
+        self.fourier_transform()
+
+        # compute perturbation
+        # max_idx = None
+        if perturbation:
+            # obtain eigenvalues by solving the dispersion relation
+            # sols = np.zeros_like(grid.x.wavenumbers) + 0j
+            guess_r, guess_i = 0, 0.0001 / grid.x.wavenumbers[1]
+            idx, wave = 1, grid.x.wavenumbers[1]
+            solution = opt.root(dispersion.dispersion_fsolve, x0=np.array([guess_r, guess_i]),
+                                args=(wave, u1, vt1, 1, u2, vt2), jac=dispersion.jacobian_fsolve, tol=1.0e-15)
+            sols = solution.x[0] + 1j * solution.x[1]
+
+            df = (grid.v.compute_maxwellian_gradient(thermal_velocity=vt1, drift_velocity=u1) +
+                  grid.v.compute_maxwellian_gradient(thermal_velocity=vt2, drift_velocity=u2)) / (1 + 1)
+
+            def eigenfunction(z, k):
+                pi2 = 2.0 * np.pi
+                phi = 0  # cp.random.random(1)
+                return (df / (z - grid.v.device_arr)) / k * cp.exp(1j * pi2 * phi)
+
+            f1 = cp.zeros_like(self.arr) + 0j
+            growth_rate = (1.0e-3) ** 0.5  # 5.0e-3
+            f1[idx, :, :] = (-self.charge_mass * growth_rate *
+                             eigenfunction(sols, grid.x.wavenumbers[idx]))
+        else:
+            f1 = 0
+
+        inverse = cp.fft.irfft(f1, axis=0, norm='forward')
+        self.arr_nodal += inverse
+        self.fourier_transform()
+        print('Finished initialization...')
+
+    def initialize_random_two_stream(self, grid, vt1, vt2, u1, u2, perturbation=True):
+        ix, iv = cp.ones_like(grid.x.device_arr), cp.ones_like(grid.v.device_arr)
+        maxwellian = cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=vt1,
+                                                                drift_velocity=u1), axes=0)
+        bump = cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=vt2,
+                                                          drift_velocity=u2), axes=0)
+        self.arr_nodal = (maxwellian + bump) / 2
+        self.fourier_transform()
+
+        self.arr_nodal += 1.0e-2 * cp.sin(grid.x.device_wavenumbers[1] * grid.x.device_arr)[:, None,
+                                   None] * self.arr_nodal
+        self.fourier_transform()
+        print('Finished initialization...')
+
     def initialize_two_stream(self, grid, vt1, vt2, u1, u2, perturbation=True):
         ix, iv = cp.ones_like(grid.x.device_arr), cp.ones_like(grid.v.device_arr)
         maxwellian = cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=vt1,
                                                                 drift_velocity=u1), axes=0)
         bump = cp.tensordot(ix, grid.v.compute_maxwellian(thermal_velocity=vt2,
                                                           drift_velocity=u2), axes=0)
-        self.arr_nodal = (maxwellian + bump) / (1 + 1)
+        self.arr_nodal = (maxwellian + bump) / 2
         self.fourier_transform()
 
         # compute perturbation
@@ -157,7 +211,7 @@ class Distribution:
             unstable_modes = grid.x.wavenumbers[np.imag(sols) > 0.003]
             mode_idxs = grid.x.device_modes[np.imag(sols) > 0.003]
             unstable_eigs = sols[np.imag(sols) > 0.003]
-            largest_growth_rate = cp.amax(np.imag(unstable_eigs) * unstable_modes)
+            # largest_growth_rate = cp.amax(np.imag(unstable_eigs) * unstable_modes)
             # eig_sum, pi2 = 0, 2 * np.pi
             f1 = cp.zeros_like(self.arr) + 0j
             for idx in range(unstable_modes.shape[0]):
@@ -165,8 +219,6 @@ class Distribution:
                 growth_rate = 1.0e-3
                 f1[mode_idxs[idx], :, :] = (-self.charge_mass * growth_rate *
                                             eigenfunction(unstable_eigs[idx], unstable_modes[idx]))
-                # f1[mode_idxs[idx], :, :] += (-self.charge_mass * growth_rate *
-                #                              eigenfunction(-1.0 * unstable_eigs[idx], unstable_modes[idx]))
 
         else:
             f1 = 0
