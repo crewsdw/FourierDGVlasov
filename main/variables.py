@@ -268,39 +268,39 @@ class Distribution:
             group_vel[0] = (zeta[1] - zeta[0]) / dk
             group_vel[-1] = (zeta[-1] - zeta[-2]) / dk
 
-            plt.figure()
-            plt.plot(grid.x.wavenumbers[1:], np.real(sols[1:]), 'r', label=r'$Re(\zeta)$', linewidth=3)
-            plt.plot(grid.x.wavenumbers[1:], group_vel, 'b', label=r'Group velocity', linewidth=3)
-            plt.plot(grid.x.wavenumbers[1:], np.imag(sols[1:]), 'g', label=r'Im($\zeta$)',
-                     linewidth=3)
-            # plt.plot(grid_k, approx_zetar, 'bo--', label='Approximate real part')
-            # plt.plot(grid_k, 20 * approx_zetai, 'ko--', label=r'Approximate imaginary part $\times 20$')
-            plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Velocity $v/v_t$')
-            plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+            # plt.figure()
+            # plt.plot(grid.x.wavenumbers[1:], np.real(sols[1:]), 'r', label=r'$Re(\zeta)$', linewidth=3)
+            # plt.plot(grid.x.wavenumbers[1:], group_vel, 'b', label=r'Group velocity', linewidth=3)
+            # plt.plot(grid.x.wavenumbers[1:], np.imag(sols[1:]), 'g', label=r'Im($\zeta$)',
+            #          linewidth=3)
+            # # plt.plot(grid_k, approx_zetar, 'bo--', label='Approximate real part')
+            # # plt.plot(grid_k, 20 * approx_zetai, 'ko--', label=r'Approximate imaginary part $\times 20$')
+            # plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Velocity $v/v_t$')
+            # plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
 
             om = np.real(sols[1:]) * grid.x.wavenumbers[1:]
             im = np.imag(sols[1:]) * grid.x.wavenumbers[1:]
             imom = im / om
 
-            plt.figure()
-            plt.plot(grid.x.wavenumbers[1:], om, 'r', label='True real part', linewidth=3)
-            plt.plot(grid_k, approx_om, 'b', label='Approximate real part', linewidth=3)
-            plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Frequency $\omega/\omega_p$')
-            plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
-
-            plt.figure()
-            plt.plot(grid.x.wavenumbers[1:], im, 'g', label='True imaginary part', linewidth=3)
-            plt.plot(grid_k, approx_im, 'k', label='Approximate imaginary part', linewidth=3)
-            plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Frequency $\omega/\omega_p$')
-            plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
-
-            plt.figure()
-            plt.plot(grid.x.wavenumbers[1:], om, 'r', label=r'Local frequency $\omega_r$', linewidth=3)
-            plt.plot(grid.x.wavenumbers[1:], im, 'g', label=r'Growth rate $\omega_i$', linewidth=3)
-            plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Frequency $\omega/\omega_p$')
-            plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
-
-            plt.show()
+            # plt.figure()
+            # plt.plot(grid.x.wavenumbers[1:], om, 'r', label='True real part', linewidth=3)
+            # plt.plot(grid_k, approx_om, 'b', label='Approximate real part', linewidth=3)
+            # plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Frequency $\omega/\omega_p$')
+            # plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+            #
+            # plt.figure()
+            # plt.plot(grid.x.wavenumbers[1:], im, 'g', label='True imaginary part', linewidth=3)
+            # plt.plot(grid_k, approx_im, 'k', label='Approximate imaginary part', linewidth=3)
+            # plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Frequency $\omega/\omega_p$')
+            # plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+            #
+            # plt.figure()
+            # plt.plot(grid.x.wavenumbers[1:], om, 'r', label=r'Local frequency $\omega_r$', linewidth=3)
+            # plt.plot(grid.x.wavenumbers[1:], im, 'g', label=r'Growth rate $\omega_i$', linewidth=3)
+            # plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Frequency $\omega/\omega_p$')
+            # plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+            #
+            # plt.show()
 
             # Build eigenfunction
             # df = cp.tensordot(ix,

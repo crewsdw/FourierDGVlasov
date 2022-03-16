@@ -24,7 +24,8 @@ Grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 # Read data
 # DataFile = data.Data(folder='..\\ts\\', filename='two_stream_test30')
 # DataFile = data.Data(folder='..\\bot\\', filename='bot_1000LD_t131')
-DataFile = data.Data(folder='..\\bot\\', filename='bot_5000LD_t101')
+# DataFile = data.Data(folder='..\\bot\\', filename='bot_5000LD_march_revis_t101')
+DataFile = data.Data(folder='..\\bot\\', filename='bot_hi_time_res_march_revis_t151')
 time_data, distribution_data, density_data, field_data, total_eng, total_den = DataFile.read_file()
 
 # Set up plotter
@@ -54,11 +55,12 @@ delta_of_correlation = np.zeros((time_data.shape[0], elements[0], elements[1], o
 # quit()
 
 # Plot autocorrelation function
-# Plotter.plot_autocorrelation_function(distribution_data=distribution_data[1:], time_data=time_data[1:],
-#                                       elements=elements, order=order)
+Plotter.plot_autocorrelation_function(distribution_data=distribution_data[1:], time_data=time_data[1:],
+                                      elements=elements, order=order)
+Plotter.show()
 # Plotter.wavepacket_autocorrelation(field_data=field_data[1:], time_data=time_data[1:], elements=elements)
 
-jump = 2
+jump = 1
 for idx, time in enumerate(time_data[jump:]):
     # for iidx, time in enumerate(just_some_time):
     idx += jump
@@ -124,7 +126,7 @@ ensemble_average = var.Scalar(resolution=elements[1], order=order)
 ensemble_average.arr = avg_avg_dists
 # Compute dielectric function solution
 grid_k = Grid.x.wavenumbers[(0.2 <= Grid.x.wavenumbers) & (Grid.x.wavenumbers <= 0.35)]
-dielectric.solve_approximate_dielectric_function(distribution=ensemble_average, grid_v=Grid.v, grid_k=grid_k)
+# dielectric.solve_approximate_dielectric_function(distribution=ensemble_average, grid_v=Grid.v, grid_k=grid_k)
 
 # Estimated relaxation time
 relax_time = np.zeros_like(avg_dists)

@@ -64,7 +64,7 @@ class Plotter:
 
     def plot_autocorrelation_function(self, distribution_data, time_data, elements, order):
         # Compute autocorrelation <f_1(x,v,t_sat)f_1(x - vg*tau,v,t_sat + tau)>_L
-        t_idx = 150
+        t_idx = 125
         autocorr = cp.zeros((time_data.shape[0], elements[1], order))
         distribution1 = var.Distribution(resolutions=elements, order=order, charge_mass=-1.0)
         distribution1.arr_nodal = cp.asarray(distribution_data[t_idx])
@@ -93,6 +93,15 @@ class Plotter:
         # plt.title(r'Autocorrelation '
         #           r'$\langle f_1(x,v,t)f_1(x-v_g\tau,v,t-\tau)\rangle_L$ at $t=${:0.0f}'.format(time_data[t_idx]))
         plt.colorbar(), plt.tight_layout()
+
+        plt.figure()
+        print('Velocity is {:0.3e}'.format(self.grid.v.arr[17, 2]))
+        plt.plot(time_delay.get(), autocorr[:, 17, 2].get(), linewidth=3)
+        plt.grid(True), plt.xlabel(r'Time delay $\omega_p\tau$'), plt.ylabel(r'Autocorrelation at $v=4.2 v_t$')
+                                                                             #  r'at '
+                                                                             # r'$v=4.2$')
+        plt.tight_layout()
+
         plt.show()
 
     def distribution_contourf(self, distribution, plot_spectrum=True, remove_average=False, max_cb=None, save=None):
@@ -114,10 +123,11 @@ class Plotter:
             cb = cb * max_cb / np.amax(cb)
 
         plt.figure(figsize=(10, 5))
-        plt.contourf(self.X, self.V, distribution.grid_flatten().get(), cb, cmap=self.colormap, extend='both')
+        cf = plt.contourf(self.X, self.V, distribution.grid_flatten().get(), cb, cmap=self.colormap, extend='both')
         # plt.pcolormesh(self.X, self.V, distribution.grid_flatten().get(),
         #                shading='gouraud', vmin=cb[0], vmax=cb[-1], rasterized=True)
-        plt.xlabel(r'Position $x/\lambda_D$', ), plt.ylabel(r'Velocity $v/v_t$'), plt.colorbar()
+        plt.xlabel(r'Position $x/\lambda_D$', ), plt.ylabel(r'Velocity $v/v_t$')
+        plt.colorbar(cf, format='%.0e')
         # plt.xlim([-500, 500]), plt.ylim([-4, 10])
         plt.tight_layout()
         if save:

@@ -72,13 +72,13 @@ class VelocityGrid:
         self.dx_grid = None
         # self.stretch_grid()
         # TS:
-        self.create_triple_grid(lows=np.array([self.low, -12, 12]),
-                                highs=np.array([-12, 12, self.high]),
-                                elements=np.array([5, 15, 5]))
+        # self.create_triple_grid(lows=np.array([self.low, -12, 12]),
+        #                         highs=np.array([-12, 12, self.high]),
+        #                         elements=np.array([5, 15, 5]))
         # BOT:
-        # self.create_pentic_grid(lows=np.array([self.low, -5, 3, 8, 12]),
-        #                         highs=np.array([-5, 3, 8, 12, self.high]),
-        #                         elements=np.array([5, 5, 30, 5, 5]))
+        self.create_pentic_grid(lows=np.array([self.low, -5, 3, 8, 12]),
+                                highs=np.array([-5, 3, 8, 12, self.high]),
+                                elements=np.array([5, 5, 30, 5, 5]))
         # TS:
         # self.create_pentic_grid(lows=np.array([self.low, -10, 3, 8, 12]),
         #                         highs=np.array([-5, 3, 8, 12, self.high]),

@@ -53,7 +53,8 @@ class StepperSingleSpecies:
         # self.save_times = np.append(np.linspace(140, 170, num=301), 0)
         # self.save_times = np.array([10, 20, 30, 40, 50, 0])
         # self.save_times = np.array([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 0])
-        self.save_times = np.array([50, 60, 70, 80, 90, 0])
+        # self.save_times = np.array([60, 70, 80, 90, 100, 0])
+        self.save_times = np.append(np.linspace(100, 150, num=250), 0)
 
     def main_loop_adams_bashforth(self, distribution, elliptic, grid, DataFile):  # , plotter, plot=True):
         """
