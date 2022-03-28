@@ -35,6 +35,8 @@ class StepperSingleSpecies:
         self.time_array = np.array([])
         self.thermal_energy = np.array([])
         self.density_array = np.array([])
+        self.moment_array = np.array([])
+        self.l2_array = np.array([])
         # self.saved_field = np.array([])
         num = int(self.steps // 20 + 1)
 
@@ -50,11 +52,12 @@ class StepperSingleSpecies:
         # self.save_times = np.array([72, 77, 82, 87, 92, 0])
         # self.save_times = np.append(np.linspace(100, 140, num=40), 0)
         # self.save_times = np.append(np.linspace(25, 75, num=250), 0)
-        # self.save_times = np.append(np.linspace(140, 170, num=301), 0)
-        # self.save_times = np.array([10, 20, 30, 40, 50, 0])
+        self.save_times = np.append(np.linspace(140, 170, num=301), 0)
+        # self.save_times = np.array([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 0])
         # self.save_times = np.array([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 0])
         # self.save_times = np.array([60, 70, 80, 90, 100, 0])
-        self.save_times = np.append(np.linspace(100, 150, num=250), 0)
+        # self.save_times = np.append(np.linspace(100, 150, num=250), 0)
+        # self.save_times = np.array([0, 0])  # save nothing
 
     def main_loop_adams_bashforth(self, distribution, elliptic, grid, DataFile):  # , plotter, plot=True):
         """
@@ -102,6 +105,8 @@ class StepperSingleSpecies:
                                                 distribution.total_thermal_energy(grid=grid))
                 self.density_array = np.append(self.density_array,
                                                distribution.total_density(grid=grid))
+                self.moment_array = np.append(self.moment_array, distribution.total_momentum(grid=grid))
+                self.l2_array = np.append(self.l2_array, distribution.l2_norm(grid=grid))
                 # Max time-step velocity space
                 elliptic.field.inverse_fourier_transform()
                 max_field = cp.amax(elliptic.field.arr_nodal)

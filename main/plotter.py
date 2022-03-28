@@ -98,8 +98,6 @@ class Plotter:
         print('Velocity is {:0.3e}'.format(self.grid.v.arr[17, 2]))
         plt.plot(time_delay.get(), autocorr[:, 17, 2].get(), linewidth=3)
         plt.grid(True), plt.xlabel(r'Time delay $\omega_p\tau$'), plt.ylabel(r'Autocorrelation at $v=4.2 v_t$')
-                                                                             #  r'at '
-                                                                             # r'$v=4.2$')
         plt.tight_layout()
 
         plt.show()
@@ -114,21 +112,28 @@ class Plotter:
             distribution.arr[0, :] = 0
             distribution.inverse_fourier_transform()
 
-        cb = np.linspace(np.amin(distribution.arr_nodal.get()), np.amax(distribution.arr_nodal.get()),
-                         num=30)
-        # cb = np.linspace(-0.005, 0.005, num=100)
+        cb = np.linspace(np.amin(distribution.arr_nodal.get()), np.amax(distribution.arr_nodal.get()), num=200)
+        # cb = np.linspace(-1, 1, num=100)
         if remove_average:
             cb = cb * 0.05
         if max_cb:
             cb = cb * max_cb / np.amax(cb)
 
-        plt.figure(figsize=(10, 5))
-        cf = plt.contourf(self.X, self.V, distribution.grid_flatten().get(), cb, cmap=self.colormap, extend='both')
+        # limits
+        xlim0, xlim1 = -310, -210
+        arg0, arg1 = np.where(self.x == xlim0)[0][0], np.where(self.x == xlim1)[0][0]
+        # cb = np.linspace(np.amin(distribution.arr_nodal[arg0:arg1, :, :].get()),
+        #                  np.amax(distribution.arr_nodal[arg0:arg1, :, :].get()), num=200)
+        cb = np.linspace(-10e-4, 10e-4, num=200)
+
+        plt.figure(figsize=(3*1.618, 3))
+        cf = plt.contourf(self.X, self.V, distribution.grid_flatten().get(), cb, extend='both')  # cmap=self.colormap,
         # plt.pcolormesh(self.X, self.V, distribution.grid_flatten().get(),
         #                shading='gouraud', vmin=cb[0], vmax=cb[-1], rasterized=True)
         plt.xlabel(r'Position $x/\lambda_D$', ), plt.ylabel(r'Velocity $v/v_t$')
         plt.colorbar(cf, format='%.0e')
-        # plt.xlim([-500, 500]), plt.ylim([-4, 10])
+        # plt.colorbar()
+        plt.xlim([xlim0, xlim1]), plt.ylim([-4, 6])
         plt.tight_layout()
         if save:
             plt.savefig(save + '.jpg', dpi=1000)
@@ -137,12 +142,15 @@ class Plotter:
             spectrum_to_plot = distribution.spectral_flatten()
             spectrum_to_plot[self.grid.x.zero_idx, :] = 0.0
             spectrum = np.log(1.0 + np.absolute(spectrum_to_plot.get()))
-            cb_s = np.linspace(np.amin(spectrum), 0.15 * np.amax(spectrum), num=100)
+            # cb_s = np.linspace(np.amin(spectrum), 0.05 * np.amax(spectrum), num=100)
+            cb_s = np.linspace(0, 3e-5, num=100)
 
-            plt.figure()
-            plt.contourf(self.FX, self.FV, spectrum, cb_s, extend='both')  # , cmap=self.colormap)
-            # plt.pcolormesh(self.FX, self.FV, spectrum, shading='gouraud', vmin=cb_s[0], vmax=cb_s[-1], rasterized=True)
-            plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Velocity $v/v_t$'), plt.colorbar(), plt.tight_layout()
+            plt.figure(figsize=(3*1.618, 3))
+            # plt.contourf(self.FX, self.FV, spectrum, cb_s, extend='both')  # , cmap=self.colormap)
+            plt.pcolormesh(self.FX, self.FV, spectrum, shading='gouraud', vmin=cb_s[0], vmax=cb_s[-1], rasterized=True)
+            plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Velocity $v/v_t$')
+            plt.xlim([0, 1.65]), plt.ylim([-4, 10])
+            plt.colorbar(), plt.tight_layout()
 
     def plot_average_distribution(self, distribution):
         plt.figure()
@@ -180,8 +188,8 @@ class Plotter:
         for idx in range(start_idx, field_psd.shape[0]):
             average += field_psd[idx, :]
         average = average / (field_psd.shape[0] - start_idx)
-        plt.figure()
-        plt.loglog(self.fundamental * self.k.flatten(), average, 'o')
+        plt.figure(figsize=(3*1.618, 3))
+        plt.loglog(self.fundamental * self.k.flatten(), average, 'o', ms=1.111)
         plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel('Field Power Spectral Density')
         plt.legend(loc='best'), plt.grid(True), plt.tight_layout()
 

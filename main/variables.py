@@ -6,6 +6,8 @@ import cupyx.scipy.signal as sig
 import scipy.signal as ssig
 import matplotlib.pyplot as plt
 import dielectric
+import numpy.polynomial as poly
+import scipy.special as sp
 from copy import deepcopy
 
 cp.random.seed(1111)
@@ -59,10 +61,15 @@ class Distribution:
         # arrays
         self.arr, self.arr_nodal = None, None
         self.zero_moment = SpaceScalar(resolution=resolutions[0])
+        self.first_moment = SpaceScalar(resolution=resolutions[0])
         self.second_moment = SpaceScalar(resolution=resolutions[0])
+        self.local_l2 = SpaceScalar(resolution=resolutions[0])
 
         # post-processing attributes
         self.avg_dist, self.delta_f = None, None
+
+        # attributes for higher quad
+        self.ell, self.gl_weights = None, None
 
     def compute_zero_moment(self, grid):
         self.inverse_fourier_transform()
@@ -70,10 +77,37 @@ class Distribution:
         self.zero_moment.fourier_transform()
         # self.zero_moment.arr_spectral = grid.v.zero_moment(function=self.arr, idx=[1, 2])
 
+    def total_momentum(self, grid):
+        self.inverse_fourier_transform()
+        self.first_moment.arr_nodal = grid.v.first_moment(function=self.arr_nodal, idx=[1, 2])
+        return self.first_moment.integrate(grid=grid)
+
     def total_thermal_energy(self, grid):
         self.inverse_fourier_transform()
         self.second_moment.arr_nodal = grid.v.second_moment(function=self.arr_nodal, idx=[1, 2])
         return 0.5 * self.second_moment.integrate(grid=grid)
+
+    def set_up_higher_quad(self, grid):
+        """ f^2 is order 2(n-1) and needs GL quadrature of order n"""
+        local_order = self.order
+        gl_nodes, gl_weights = poly.legendre.leggauss(local_order)
+        # Evaluate Legendre polynomials at finer grid
+        ps = np.array([sp.legendre(s)(gl_nodes) for s in range(self.order)])
+        # Interpolation polynomials at fine points
+        ell = np.tensordot(grid.v.local_basis.inv_vandermonde, ps, axes=([0], [0]))
+        self.ell = cp.asarray(ell)
+        self.gl_weights = cp.asarray(gl_weights)
+
+    def l2_norm(self, grid):
+        """ Compute the L2-norm sqrt(integral(f^2, dx*dv)) """
+        # Interpolated function at fine points
+        interp_poly = cp.tensordot(self.arr, self.ell, axes=([2], [0]))
+        # Integral in velocity-space
+        quad = self.gl_weights[None, None, :] * interp_poly ** 2.0 / grid.v.J[None, :, None]
+        self.local_l2.arr_nodal = quad.reshape((quad.shape[0], quad.shape[1]*quad.shape[2])).sum(axis=1)
+
+        # return integral
+        return cp.sqrt(self.local_l2.integrate(grid=grid))
 
     def average_distribution(self, grid):
         self.avg_dist = np.real(self.arr[0, :].get())
@@ -254,59 +288,7 @@ class Distribution:
             # Approximate solution
             ensemble_average = Scalar(resolution=grid.v.elements, order=grid.v.order)
             ensemble_average.arr = self.arr_nodal[0, :, :].get()
-            # Compute dielectric function solution
-            grid_k = grid.x.wavenumbers[(0.14 <= grid.x.wavenumbers) & (grid.x.wavenumbers <= 0.4)]
-            approx_zetar, approx_zetai = dielectric.solve_approximate_dielectric_function(distribution=ensemble_average,
-                                                                                          grid_v=grid.v, grid_k=grid_k)
-            approx_om = approx_zetar * grid_k
-            approx_im = approx_zetai * grid_k
 
-            dk = grid.x.wavenumbers[1] - grid.x.wavenumbers[0]
-            zeta = np.real(sols[1:] * grid.x.wavenumbers[1:])
-            group_vel = np.zeros_like(zeta)
-            group_vel[1:-1] = (zeta[2:] - zeta[:-2]) / (2 * dk)
-            group_vel[0] = (zeta[1] - zeta[0]) / dk
-            group_vel[-1] = (zeta[-1] - zeta[-2]) / dk
-
-            # plt.figure()
-            # plt.plot(grid.x.wavenumbers[1:], np.real(sols[1:]), 'r', label=r'$Re(\zeta)$', linewidth=3)
-            # plt.plot(grid.x.wavenumbers[1:], group_vel, 'b', label=r'Group velocity', linewidth=3)
-            # plt.plot(grid.x.wavenumbers[1:], np.imag(sols[1:]), 'g', label=r'Im($\zeta$)',
-            #          linewidth=3)
-            # # plt.plot(grid_k, approx_zetar, 'bo--', label='Approximate real part')
-            # # plt.plot(grid_k, 20 * approx_zetai, 'ko--', label=r'Approximate imaginary part $\times 20$')
-            # plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Velocity $v/v_t$')
-            # plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
-
-            om = np.real(sols[1:]) * grid.x.wavenumbers[1:]
-            im = np.imag(sols[1:]) * grid.x.wavenumbers[1:]
-            imom = im / om
-
-            # plt.figure()
-            # plt.plot(grid.x.wavenumbers[1:], om, 'r', label='True real part', linewidth=3)
-            # plt.plot(grid_k, approx_om, 'b', label='Approximate real part', linewidth=3)
-            # plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Frequency $\omega/\omega_p$')
-            # plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
-            #
-            # plt.figure()
-            # plt.plot(grid.x.wavenumbers[1:], im, 'g', label='True imaginary part', linewidth=3)
-            # plt.plot(grid_k, approx_im, 'k', label='Approximate imaginary part', linewidth=3)
-            # plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Frequency $\omega/\omega_p$')
-            # plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
-            #
-            # plt.figure()
-            # plt.plot(grid.x.wavenumbers[1:], om, 'r', label=r'Local frequency $\omega_r$', linewidth=3)
-            # plt.plot(grid.x.wavenumbers[1:], im, 'g', label=r'Growth rate $\omega_i$', linewidth=3)
-            # plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Frequency $\omega/\omega_p$')
-            # plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
-            #
-            # plt.show()
-
-            # Build eigenfunction
-            # df = cp.tensordot(ix,
-            #                   grid.v.compute_maxwellian_gradient(thermal_velocity=vt, drift_velocity=u) +
-            #                   chi * grid.v.compute_maxwellian_gradient(thermal_velocity=vtb, drift_velocity=vb),
-            #                   axes=0) / (1 + chi)
             df = (grid.v.compute_maxwellian_gradient(thermal_velocity=vt, drift_velocity=u) +
                   chi * grid.v.compute_maxwellian_gradient(thermal_velocity=vtb, drift_velocity=vb)) / (1 + chi)
 
@@ -394,6 +376,7 @@ class Scalar:
         return cp.tensordot(self.arr * (0.5 * grid.device_arr ** 2.0),
                             grid.global_quads / grid.J[:, None], axes=([0, 1], [0, 1]))
 
+
 # grid
 #             om_r = np.linspace(-0.1, 0.1, num=500)
 #             om_i = np.linspace(-0.1, 0.1, num=500)
@@ -422,3 +405,56 @@ class Scalar:
 #             plt.contour(X, Y, np.imag(eps), 0, colors='g')
 #             plt.grid(True)
 #             plt.show()
+# Compute dielectric function solution
+# grid_k = grid.x.wavenumbers[(0.14 <= grid.x.wavenumbers) & (grid.x.wavenumbers <= 0.4)]
+# approx_zetar, approx_zetai = dielectric.solve_approximate_dielectric_function(distribution=ensemble_average,
+#                                                                               grid_v=grid.v, grid_k=grid_k)
+# approx_om = approx_zetar * grid_k
+# approx_im = approx_zetai * grid_k
+#
+# dk = grid.x.wavenumbers[1] - grid.x.wavenumbers[0]
+# zeta = np.real(sols[1:] * grid.x.wavenumbers[1:])
+# group_vel = np.zeros_like(zeta)
+# group_vel[1:-1] = (zeta[2:] - zeta[:-2]) / (2 * dk)
+# group_vel[0] = (zeta[1] - zeta[0]) / dk
+# group_vel[-1] = (zeta[-1] - zeta[-2]) / dk
+
+# plt.figure()
+# plt.plot(grid.x.wavenumbers[1:], np.real(sols[1:]), 'r', label=r'$Re(\zeta)$', linewidth=3)
+# plt.plot(grid.x.wavenumbers[1:], group_vel, 'b', label=r'Group velocity', linewidth=3)
+# plt.plot(grid.x.wavenumbers[1:], np.imag(sols[1:]), 'g', label=r'Im($\zeta$)',
+#          linewidth=3)
+# # plt.plot(grid_k, approx_zetar, 'bo--', label='Approximate real part')
+# # plt.plot(grid_k, 20 * approx_zetai, 'ko--', label=r'Approximate imaginary part $\times 20$')
+# plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Velocity $v/v_t$')
+# plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+
+# om = np.real(sols[1:]) * grid.x.wavenumbers[1:]
+# im = np.imag(sols[1:]) * grid.x.wavenumbers[1:]
+# imom = im / om
+
+# plt.figure()
+# plt.plot(grid.x.wavenumbers[1:], om, 'r', label='True real part', linewidth=3)
+# plt.plot(grid_k, approx_om, 'b', label='Approximate real part', linewidth=3)
+# plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Frequency $\omega/\omega_p$')
+# plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+#
+# plt.figure()
+# plt.plot(grid.x.wavenumbers[1:], im, 'g', label='True imaginary part', linewidth=3)
+# plt.plot(grid_k, approx_im, 'k', label='Approximate imaginary part', linewidth=3)
+# plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Frequency $\omega/\omega_p$')
+# plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+#
+# plt.figure()
+# plt.plot(grid.x.wavenumbers[1:], om, 'r', label=r'Local frequency $\omega_r$', linewidth=3)
+# plt.plot(grid.x.wavenumbers[1:], im, 'g', label=r'Growth rate $\omega_i$', linewidth=3)
+# plt.xlabel(r'Wavenumber $k\lambda_D$'), plt.ylabel(r'Frequency $\omega/\omega_p$')
+# plt.grid(True), plt.legend(loc='best'), plt.tight_layout()
+#
+# plt.show()
+
+# Build eigenfunction
+# df = cp.tensordot(ix,
+#                   grid.v.compute_maxwellian_gradient(thermal_velocity=vt, drift_velocity=u) +
+#                   chi * grid.v.compute_maxwellian_gradient(thermal_velocity=vtb, drift_velocity=vb),
+#                   axes=0) / (1 + chi)

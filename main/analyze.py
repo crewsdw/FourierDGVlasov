@@ -24,8 +24,8 @@ Grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 # Read data
 # DataFile = data.Data(folder='..\\ts\\', filename='two_stream_test30')
 # DataFile = data.Data(folder='..\\bot\\', filename='bot_1000LD_t131')
-# DataFile = data.Data(folder='..\\bot\\', filename='bot_5000LD_march_revis_t101')
-DataFile = data.Data(folder='..\\bot\\', filename='bot_hi_time_res_march_revis_t151')
+DataFile = data.Data(folder='..\\bot\\', filename='bot_5000LD_march_21_t151')
+# DataFile = data.Data(folder='..\\bot\\', filename='bot_hi_time_res_march_revis_t171')
 time_data, distribution_data, density_data, field_data, total_eng, total_den = DataFile.read_file()
 
 # Set up plotter
@@ -55,9 +55,9 @@ delta_of_correlation = np.zeros((time_data.shape[0], elements[0], elements[1], o
 # quit()
 
 # Plot autocorrelation function
-Plotter.plot_autocorrelation_function(distribution_data=distribution_data[1:], time_data=time_data[1:],
-                                      elements=elements, order=order)
-Plotter.show()
+# Plotter.plot_autocorrelation_function(distribution_data=distribution_data[1:], time_data=time_data[1:],
+#                                       elements=elements, order=order)
+# Plotter.show()
 # Plotter.wavepacket_autocorrelation(field_data=field_data[1:], time_data=time_data[1:], elements=elements)
 
 jump = 1
@@ -95,6 +95,24 @@ for idx, time in enumerate(time_data[jump:]):
                                                                                             Grid=Grid,
                                                                                             covariance=covariance[idx,
                                                                                                        :, :])
+
+    # Ratio of fluctuating flux to mean flux
+    # ratio = (delta_of_correlation[idx, :, :, :] -
+    #          (Distribution.avg_dist[None, :, :] * Elliptic.field.arr_nodal[:, None, None].get()))
+    ratio = (Distribution.avg_dist[None, :, :] * Elliptic.field.arr_nodal[:, None, None].get())
+    # ratio = (Distribution.avg_dist[None, :, :] * np.absolute(
+    #     Elliptic.field.compute_hilbert(vt_shift=0, grid=Grid)[:, None, None]))
+
+    RatioDist = var.Distribution(resolutions=elements, order=order, charge_mass=-1.0)
+    RatioDist.arr_nodal = cp.asarray(ratio)
+
+    if idx == 9:
+        Plotter.distribution_contourf(distribution=RatioDist, plot_spectrum=False, remove_average=False, max_cb=None,
+                                      save='..\\bot_figs\\closure\\mean_flux80_2')
+        Plotter.distribution_contourf(distribution=DeltaOfCorrelation, plot_spectrum=False, remove_average=False,
+                                      max_cb=None, save='..\\bot_figs\\closure\\beat_flux80_2')
+        Plotter.show()
+
     # diff_estimate[idx, :, :] = avg_grads[idx, :, :] / (covariance[idx, :, :]+1.0e-6)  # ) / (avg_grads[idx, :, :])
     # diff_estimate[diff_estimate < 0] = 0
     # diff_estimate[diff_estimate > 3] = 0
@@ -116,7 +134,7 @@ for idx, time in enumerate(time_data[jump:]):
     # Plotter.plot_average_distribution(distribution=Distribution)
     # Plotter.show()
 
-Plotter.distribution_contourf(distribution=Distribution, plot_spectrum=True, remove_average=True,
+Plotter.distribution_contourf(distribution=Distribution, plot_spectrum=True, remove_average=False,
                               max_cb=None)
 Plotter.show()
 
@@ -169,18 +187,18 @@ relax_time[:, -5:, :] = 0
 #
 # plt.show()
 
-Plotter.plot_many_velocity_averages(time_data, relax_time, y_label=r'Relaxation frequency $\tau_r^{-1}$')
-Plotter.plot_many_velocity_averages(time_data, np.log(avg_dists), y_label=r'Average distribution $\langle f\rangle_L$')
-Plotter.plot_many_velocity_averages(time_data, covariance,
-                                    y_label=r'Field-particle covariance, $\langle\delta f E\rangle_L$')
-Plotter.plot_many_velocity_averages(time_data, avg_grads, y_label='Gradient of average distribution')
-Plotter.plot_many_velocity_averages(time_data, diff_estimate, y_label=r'DNS diffusivity $D(v)$')
-Plotter.plot_many_velocity_averages(time_data, variance_of_correlation,
-                                    y_label=r'Variance of field-particle correlation, '
-                                            r'$\langle\langle f_1 E\rangle\rangle_L$')
-# Plotter.plot_average_field_power_spectrum(time_data, field_psd, start_idx=2)
+# Plotter.plot_many_velocity_averages(time_data, relax_time, y_label=r'Relaxation frequency $\tau_r^{-1}$')
+# Plotter.plot_many_velocity_averages(time_data, np.log(avg_dists),y_label=r'Average distribution $\langle f\rangle_L$')
+# Plotter.plot_many_velocity_averages(time_data, covariance,
+#                                     y_label=r'Field-particle covariance, $\langle\delta f E\rangle_L$')
+# Plotter.plot_many_velocity_averages(time_data, avg_grads, y_label='Gradient of average distribution')
+# Plotter.plot_many_velocity_averages(time_data, diff_estimate, y_label=r'DNS diffusivity $D(v)$')
+# Plotter.plot_many_velocity_averages(time_data, variance_of_correlation,
+#                                     y_label=r'Variance of field-particle correlation, '
+#                                             r'$\langle\langle f_1 E\rangle\rangle_L$')
+Plotter.plot_average_field_power_spectrum(time_data, field_psd, start_idx=2)
 # Plotter.plot_many_field_power_spectra(time_data, field_psd)
-print(total_eng.shape)
+# print(total_eng.shape)
 # Plotter.time_series_plot(time_in=time_data, series_in=total_eng,
 #                          y_axis='Total energy', log=False, numpy=True)
 Plotter.show()

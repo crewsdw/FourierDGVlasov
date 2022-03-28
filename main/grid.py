@@ -264,7 +264,11 @@ class VelocityGrid:
         return interpolant_grad_on_point
 
     def zero_moment(self, function, idx):
-        return cp.tensordot(self.global_quads / self.J[:, None], function, axes=([0, 1], idx))  # / self.J
+        return cp.tensordot(self.global_quads / self.J[:, None], function, axes=([0, 1], idx))
+
+    def first_moment(self, function, idx):
+        return cp.tensordot(self.global_quads / self.J[:, None], cp.multiply(self.device_arr[None, :, :], function),
+                            axes=([0, 1], idx))
 
     def second_moment(self, function, idx):
         return cp.tensordot(self.global_quads / self.J[:, None], cp.multiply(self.device_arr[None, :, :] ** 2.0,
@@ -286,9 +290,6 @@ class PhaseSpace:
         self.x = SpaceGrid(low=lows[0], high=highs[0], elements=elements[0])
         self.v = VelocityGrid(low=lows[1], high=highs[1], elements=elements[1], order=order)
 
-    # def fourier_transform(self, function):
-    #     return np.fft.fft(function, axis=0)
-
     def eigenfunction(self, thermal_velocity, drift_velocity, eigenvalue, beams='two-stream'):
         if beams == 'one':
             df = self.v.compute_maxwellian_gradient(thermal_velocity=thermal_velocity,
@@ -302,14 +303,6 @@ class PhaseSpace:
             v_part = df / denom_abs / (self.x.fundamental ** 2.0)  # * np.exp(-1j * denom_ang)
             xv_part = cp.cos(self.x.fundamental * self.x.device_arr[:, None, None] - denom_ang[None, :, :])
             return xv_part * v_part[None, :, :]
-            # v_part = df / (zeta - self.v.device_arr) / (self.x.fundamental ** 2.0)
-            # z = eigenvalue / (0.5 * np.sqrt(2))
-            # eps = 0  # 1.0 - 0.5 * pd.Zprime(z) / (self.x.fundamental ** 2.0)
-            # eps_prime = -0.5 * pd.Zdoubleprime(z) / (self.x.fundamental ** 3.0)
-            # v_part = df / (eps + (eigenvalue - self.x.fundamental * self.v.device_arr) * eps_prime)
-            # return cp.tensordot(cp.cos(self.x.fundamental * self.x.device_arr), v_part, axes=0)
-            # return cp.tensordot(cp.exp(1j * self.x.fundamental * self.x.device_arr), v_part, axes=0)
-            # return cp.tensordot(cp.ones_like(self.x.device_arr), v_part, axes=0)
 
         if beams == 'two-stream':
             df1 = self.v.compute_maxwellian_gradient(thermal_velocity=thermal_velocity,
