@@ -9,14 +9,14 @@ import matplotlib.pyplot as plt
 import dielectric
 
 # elements and order
-elements, order = [5000, 50], 10  # [20000, 25], 20  # [5000, 50], 8
+elements, order = [500, 30], 10  # [20000, 25], 20  # [5000, 50], 10
 vt = 1
 chi = 0.05
 vb = 5
 vtb = chi ** (1 / 3) * vb
 
 # set up grids
-length = 5000
+length = 2.0 * np.pi / 0.126  # 5000
 lows = np.array([-length / 2, -25 * vt])
 highs = np.array([length / 2, 25 * vt])
 Grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
@@ -24,12 +24,27 @@ Grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 # Read data
 # DataFile = data.Data(folder='..\\ts\\', filename='two_stream_test30')
 # DataFile = data.Data(folder='..\\bot\\', filename='bot_1000LD_t131')
-DataFile = data.Data(folder='..\\bot\\', filename='bot_5000LD_march_21_t151')
+# DataFile = data.Data(folder='..\\bot\\', filename='bot_5000LD_march_21_t151')
 # DataFile = data.Data(folder='..\\bot\\', filename='bot_hi_time_res_march_revis_t171')
-time_data, distribution_data, density_data, field_data, total_eng, total_den = DataFile.read_file()
+# time_data, distribution_data, density_data, field_data, total_eng, total_den = DataFile.read_file()
 
 # Set up plotter
 Plotter = my_plt.Plotter(grid=Grid)
+
+# Read data files
+DataFile1 = data.Data(folder='..\\ts\\', filename='small_amp_eigen_pert_april16_t34')
+time_data, energy_data = DataFile1.read_energy_from_file()
+DataFile2 = data.Data(folder='..\\ts\\', filename='large_amp_eigen_pert_april16_t20')
+time_data2, energy_data2 = DataFile2.read_energy_from_file()
+
+plt.figure()
+plt.semilogy(time_data, energy_data/length, 'k', linewidth=3)
+plt.semilogy(time_data2, energy_data2/length, 'b', linewidth=3)
+plt.xlabel(r'Time $t\omega_p$'), plt.ylabel(r'Electric energy $\frac{1}{2L}\int E^2(x)dx$')
+plt.grid(True), plt.tight_layout()
+plt.show()
+
+quit()
 
 # Loop through time data
 avg_dists = np.zeros((time_data.shape[0], elements[1], order))

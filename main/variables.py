@@ -193,7 +193,7 @@ class Distribution:
         self.fourier_transform()
 
         self.arr_nodal += 1.0e-2 * cp.sin(grid.x.device_wavenumbers[1] * grid.x.device_arr)[:, None,
-                                   None] * self.arr_nodal
+                                   None] * self.arr_nodal / grid.x.device_wavenumbers[1]  # small, 1.0e-4
         self.fourier_transform()
         print('Finished initialization...')
 
@@ -250,7 +250,7 @@ class Distribution:
             f1 = cp.zeros_like(self.arr) + 0j
             for idx in range(unstable_modes.shape[0]):
                 # growth_rate = 1.0e-3 * np.imag(unstable_eigs[idx]) * unstable_modes[idx] / largest_growth_rate
-                growth_rate = 1.0e-3
+                growth_rate = (1.0e-3)**0.5  # 1.0e-3, (1.7e-7)**0.5
                 f1[mode_idxs[idx], :, :] = (-self.charge_mass * growth_rate *
                                             eigenfunction(unstable_eigs[idx], unstable_modes[idx]))
 
@@ -292,7 +292,7 @@ class Distribution:
             df = (grid.v.compute_maxwellian_gradient(thermal_velocity=vt, drift_velocity=u) +
                   chi * grid.v.compute_maxwellian_gradient(thermal_velocity=vtb, drift_velocity=vb)) / (1 + chi)
 
-            # def eigenfunction(z, k):zs
+            # def eigenfunction(z, k):
             #     return (df / (z - grid.v.device_arr[None, :, :]) *
             #             cp.exp(1j * k * grid.x.device_arr[:, None, None])) / k
             def eigenfunction(z, k):

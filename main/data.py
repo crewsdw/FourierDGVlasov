@@ -7,7 +7,7 @@ class Data:
         self.write_filename = folder + filename + '.hdf5'
         self.info_name = folder + filename + '_info.txt'
 
-    def create_file(self, distribution, density, field):
+    def create_file(self, distribution, density, field, field_energy):
         # Open file for writing
         with h5py.File(self.write_filename, 'w') as f:
             # Create datasets, dataset_distribution =
@@ -24,8 +24,19 @@ class Data:
                              maxshape=(None, field.shape[0]),
                              dtype='f')
             f.create_dataset('time', data=[0.0], chunks=True, maxshape=(None,))
-            f.create_dataset('total_energy', data=[], chunks=True, maxshape=(None,))
-            f.create_dataset('total_density', data=[], chunks=True, maxshape=(None,))
+            f.create_dataset('energy_time', data=[0.0], chunks=True, maxshape=(None,))
+            f.create_dataset('electric_energy', data=[field_energy], chunks=True, maxshape=(None,))
+            # f.create_dataset('_density', data=[], chunks=True, maxshape=(None,))
+
+    def save_electric_energy(self, time, energy):
+        # Open for appending
+        with h5py.File(self.write_filename, 'a') as f:
+            # Add new time line
+            f['energy_time'].resize((f['energy_time'].shape[0] + 1), axis=0)
+            f['electric_energy'].resize((f['electric_energy'].shape[0] + 1), axis=0)
+            # Save data
+            f['energy_time'][-1] = time
+            f['electric_energy'][-1] = energy
 
     def save_data(self, distribution, density, field, time):
         # Open for appending
@@ -60,3 +71,9 @@ class Data:
             total_eng = f['total_energy'][()]
             total_den = f['total_density'][()]
         return time, pdf, den, eng, total_eng, total_den
+
+    def read_energy_from_file(self):
+        with h5py.File(self.write_filename, 'r') as f:
+            time = f['energy_time'][()]
+            energy = f['electric_energy'][()]
+        return time, energy

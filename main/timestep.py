@@ -108,11 +108,11 @@ class StepperSingleSpecies:
                 self.moment_array = np.append(self.moment_array, distribution.total_momentum(grid=grid))
                 self.l2_array = np.append(self.l2_array, distribution.l2_norm(grid=grid))
                 # Max time-step velocity space
-                elliptic.field.inverse_fourier_transform()
-                max_field = cp.amax(elliptic.field.arr_nodal)
-                max_dt = grid.v.min_dv / max_field / (2 * self.order + 1) / (2 * np.pi) * 0.01
+                # elliptic.field.inverse_fourier_transform()
+                # max_field = cp.amax(elliptic.field.arr_nodal)
+                # max_dt = grid.v.min_dv / max_field / (2 * self.order + 1) / (2 * np.pi) * 0.01
                 print('Took 50 steps, time is {:0.3e}'.format(self.time))
-                # print('Max velocity-flux dt is {:0.3e}'.format(max_dt))
+                DataFile.save_electric_energy(time=self.time, energy=elliptic.compute_field_energy(grid=grid).get())
 
             if np.abs(self.time - self.save_times[save_counter]) < 6.0e-3:
                 print('Reached save time at {:0.3e}'.format(self.time) + ', saving data...')

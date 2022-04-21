@@ -8,14 +8,14 @@ import timestep as ts
 import data
 
 # Geometry and grid parameters
-elements, order = [5000, 50], 10
+elements, order = [500, 30], 10
 vt = 1
 chi = 0.05
 vb = 5
 vtb = chi ** (1 / 3) * vb
 
 # Grids
-length = 5000  # 2.0 * np.pi / 0.126  # 500  # 5000  # 1000
+length = 2.0 * np.pi / 0.126  # 500  # 5000  # 1000
 lows = np.array([-length / 2, -25 * vt])
 highs = np.array([length / 2, 25 * vt])
 grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
@@ -23,10 +23,10 @@ grid = g.PhaseSpace(lows=lows, highs=highs, elements=elements, order=order)
 # Build distribution
 Distribution = var.Distribution(resolutions=elements, order=order, charge_mass=-1.0)
 Distribution.set_up_higher_quad(grid=grid)
-# Distribution.initialize_two_stream(grid=grid, vt1=1, vt2=1, u1=5, u2=-5)
+Distribution.initialize_two_stream(grid=grid, vt1=1, vt2=1, u1=5, u2=-5)
 # Distribution.initialize_random_two_stream(grid=grid, vt1=1, vt2=1, u1=5, u2=-5)
 # Distribution.initialize_eigenmode_two_stream(grid=grid, vt1=1, vt2=1, u1=5, u2=-5)
-Distribution.initialize_bump_on_tail(grid=grid, vt=vt, u=0, chi=chi, vb=vb, vtb=vtb)
+# Distribution.initialize_bump_on_tail(grid=grid, vt=vt, u=0, chi=chi, vb=vb, vtb=vtb)
 Distribution.fourier_transform(), Distribution.inverse_fourier_transform()
 
 # Set up elliptic problem
@@ -45,7 +45,7 @@ t0 = timer.time()
 time = 0
 dt = 2.5e-3  # 4.7e-4
 step = 2.5e-3  # 4.7e-4
-final_time = 171  # 31  # 101  # 172  # 151  # 100  # 100  # 150  # 50
+final_time = 20  # 34  # 31  # 101  # 172  # 151  # 100  # 100  # 150  # 50
 steps = int(np.abs(final_time // step))
 dt_max_translate = 1.0 / (np.amax(grid.x.wavenumbers) * np.amax(grid.v.arr)) / (2 * order + 1)
 cutoff_velocity = 1.0 / (np.amax(grid.x.wavenumbers) * dt) / (2 * order + 1)
@@ -54,14 +54,15 @@ print('Cutoff velocity at max wavenumber is {:0.3e}'.format(cutoff_velocity))
 
 # Save data
 # DataFile = data.Data(folder='..\\bot\\', filename='bot_5000LD_march_21_t' + str(final_time))
-DataFile = data.Data(folder='..\\bot\\', filename='bot_hi_time_res_march_revis_t' + str(final_time))
-# DataFile = data.Data(folder='..\\ts\\', filename='random_perturbation' + str(final_time))
+# DataFile = data.Data(folder='..\\bot\\', filename='bot_hi_time_res_march_revis_t' + str(final_time))
+DataFile = data.Data(folder='..\\ts\\', filename='large_amp_eigen_pert_april16_t' + str(final_time))
 DataFile.create_file(distribution=Distribution.arr_nodal.get(),
-                     density=Distribution.zero_moment.arr_nodal.get(), field=Elliptic.field.arr_nodal.get())
+                     density=Distribution.zero_moment.arr_nodal.get(), field=Elliptic.field.arr_nodal.get(),
+                     field_energy=Elliptic.compute_field_energy(grid=grid).get())
 
 # Set up stepper and execute main loop
 Stepper = ts.StepperSingleSpecies(dt=dt, step=step, resolutions=elements, order=order,
-                                  steps=steps, grid=grid, nu=1.0e-2)  #
+                                  steps=steps, grid=grid, nu=0)  #
 Stepper.main_loop_adams_bashforth(distribution=Distribution,
                                   elliptic=Elliptic, grid=grid, DataFile=DataFile)
 Elliptic.field.inverse_fourier_transform()
@@ -90,9 +91,6 @@ Plotter.time_series_plot(time_in=Stepper.time_array, series_in=Stepper.moment_ar
 Plotter.time_series_plot(time_in=Stepper.time_array, series_in=Stepper.l2_array,
                          y_axis='Distribution L2 norm', log=False, numpy=numpy_or_no)
 
-# Save inventories
-# print('Saving particle and energy inventories...')
-# DataFile.save_inventories(total_energy=total_energy, total_density=Stepper.density_array)
 
 # Look at plots
 Plotter.show()

@@ -102,7 +102,7 @@ class Plotter:
 
         plt.show()
 
-    def distribution_contourf(self, distribution, plot_spectrum=True, remove_average=False, max_cb=None, save=None):
+    def distribution_contourf(self, distribution, plot_spectrum=False, remove_average=False, max_cb=None, save=None):
         # distribution.average_on_boundaries()
         if distribution.arr_nodal is None:
             distribution.inverse_fourier_transform()
@@ -120,20 +120,20 @@ class Plotter:
             cb = cb * max_cb / np.amax(cb)
 
         # limits
-        xlim0, xlim1 = -310, -210
-        arg0, arg1 = np.where(self.x == xlim0)[0][0], np.where(self.x == xlim1)[0][0]
+        # xlim0, xlim1 = -310, -210
+        # arg0, arg1 = np.where(self.x == xlim0)[0][0], np.where(self.x == xlim1)[0][0]
         # cb = np.linspace(np.amin(distribution.arr_nodal[arg0:arg1, :, :].get()),
         #                  np.amax(distribution.arr_nodal[arg0:arg1, :, :].get()), num=200)
-        cb = np.linspace(-10e-4, 10e-4, num=200)
+        # cb = np.linspace(-10e-4, 10e-4, num=200)
 
         plt.figure(figsize=(3*1.618, 3))
-        cf = plt.contourf(self.X, self.V, distribution.grid_flatten().get(), cb, extend='both')  # cmap=self.colormap,
+        cf = plt.contourf(self.X, self.V, distribution.grid_flatten().get(), cb, extend='both', cmap=self.colormap)
         # plt.pcolormesh(self.X, self.V, distribution.grid_flatten().get(),
         #                shading='gouraud', vmin=cb[0], vmax=cb[-1], rasterized=True)
         plt.xlabel(r'Position $x/\lambda_D$', ), plt.ylabel(r'Velocity $v/v_t$')
         plt.colorbar(cf, format='%.0e')
         # plt.colorbar()
-        plt.xlim([xlim0, xlim1]), plt.ylim([-4, 6])
+        # plt.xlim([xlim0, xlim1]), plt.ylim([-4, 6])
         plt.tight_layout()
         if save:
             plt.savefig(save + '.jpg', dpi=1000)
